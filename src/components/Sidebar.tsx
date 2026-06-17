@@ -168,41 +168,43 @@ export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelec
         })}
       </nav>
 
-      {/* Database Connection Config Link */}
+      {/* Settings Connection Config Link */}
       <div style={{ padding: '0 24px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {onOpenSettings && (
-          <button
-            onClick={onOpenSettings}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              border: '1px solid #EBECEF',
-              background: '#FFFFFF',
-              color: '#5A616E',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              width: '100%',
-              justifyContent: 'center',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-              transition: 'var(--transition-smooth)',
-            }}
-            onMouseEnter={(e) => {
+        <button
+          onClick={() => onSelectTab('settings')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 10px',
+            borderRadius: '8px',
+            border: '1px solid #EBECEF',
+            background: activeTab === 'settings' ? '#FDEBE9' : '#FFFFFF',
+            color: activeTab === 'settings' ? '#E8483D' : '#5A616E',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            width: '100%',
+            justifyContent: 'center',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+            transition: 'var(--transition-smooth)',
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'settings') {
               e.currentTarget.style.background = '#FAFBFC';
               e.currentTarget.style.borderColor = '#9AA1AD';
-            }}
-            onMouseLeave={(e) => {
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'settings') {
               e.currentTarget.style.background = '#FFFFFF';
               e.currentTarget.style.borderColor = '#EBECEF';
-            }}
-          >
-            <Settings size={13} color="#9AA1AD" />
-            Settings
-          </button>
-        )}
+            }
+          }}
+        >
+          <Settings size={13} color={activeTab === 'settings' ? '#E8483D' : '#9AA1AD'} />
+          Settings
+        </button>
 
         <button
           onClick={async () => {

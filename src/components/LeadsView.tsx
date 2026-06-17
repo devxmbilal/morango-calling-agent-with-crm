@@ -23,10 +23,10 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
 
   // Count helper
   const getCount = (status: FilterStatus) => {
-    if (status === 'All') return leads.length + 211; // Template baseline offset
-    if (status === 'New Lead') return leads.filter(l => l.status === 'New Lead').length + 90;
-    if (status === 'Qualified') return leads.filter(l => l.status === 'Qualified').length + 56;
-    if (status === 'Won') return leads.filter(l => l.status === 'Won').length + 22;
+    if (status === 'All') return leads.length;
+    if (status === 'New Lead') return leads.filter(l => l.status === 'New Lead').length;
+    if (status === 'Qualified') return leads.filter(l => l.status === 'Qualified').length;
+    if (status === 'Won') return leads.filter(l => l.status === 'Won').length;
     return 0;
   };
 
@@ -141,7 +141,7 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
                 const meetingStr = lead.meetings && lead.meetings.length > 0
                   ? new Date(lead.meetings[0].meeting_date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                   : '—';
-                const callDuration = lead.recording_url ? '1:25' : '—'; // Default mock duration if recording exists
+                const callDuration = '—';
 
                 return (
                   <tr

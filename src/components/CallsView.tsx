@@ -252,7 +252,7 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
               </div>
 
               <span style={{ fontSize: '12px', color: '#9AA1AD', fontWeight: 600, flexShrink: 0 }}>
-                {lead.recording_url ? '1:25' : '—'}
+                —
               </span>
 
               <span style={{

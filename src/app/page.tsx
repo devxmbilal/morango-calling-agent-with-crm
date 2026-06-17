@@ -11,51 +11,25 @@ import MeetingsView from '@/components/MeetingsView';
 import CallsView from '@/components/CallsView';
 import AnalyticsView from '@/components/AnalyticsView';
 import EmailView from '@/components/EmailView';
+import SettingsView from '@/components/SettingsView';
 import { dbService, Lead } from '@/lib/db';
 import { Search, Plus, Database, X, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState<string>('pipeline'); // Baseline shows Pipeline
+  const [activeTab, setActiveTab] = useState<string>('overview'); // Default Landing Tab
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
   const [newLeadDefaultStatus, setNewLeadDefaultStatus] = useState<Lead['status']>('New Lead');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string; name?: string } | null>(null);
 
   // Settings state (inputs)
   const [dbUrl, setDbUrl] = useState('');
   const [dbAnonKey, setDbAnonKey] = useState('');
-
-  // Settings Tabs & User Management State
-  const [settingsTab, setSettingsTab] = useState<'database' | 'users'>('database');
-  const [users, setUsers] = useState<{ id: string; username: string; created_at: string }[]>([]);
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [userError, setUserError] = useState('');
-  const [userSuccess, setUserSuccess] = useState('');
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
-
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/auth/users');
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (isSettingsOpen && settingsTab === 'users') {
-      fetchUsers();
-    }
-  }, [isSettingsOpen, settingsTab]);
 
   // Fetch leads on mount
   const fetchLeads = async () => {
@@ -71,8 +45,21 @@ export default function Dashboard() {
     }
   };
 
+  const fetchSession = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data);
+      }
+    } catch (err) {
+      console.error('Session load error:', err);
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
+    fetchSession();
     
     // Load client credentials if present
     if (typeof window !== 'undefined') {
@@ -199,59 +186,6 @@ export default function Dashboard() {
     }
   };
 
-  // Save Settings
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('supabase_client_url', dbUrl);
-      localStorage.setItem('supabase_client_anon_key', dbAnonKey);
-      
-      alert('Credentials saved! Please reload the page to apply connection settings.');
-      setIsSettingsOpen(false);
-      window.location.reload();
-    }
-  };
-
-  // Create Operator/User Account
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUsername.trim() || !newPassword.trim()) {
-      setUserError('Username and password are required.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setUserError('Password must be at least 6 characters.');
-      return;
-    }
-    
-    setIsCreatingUser(true);
-    setUserError('');
-    setUserSuccess('');
-
-    try {
-      const res = await fetch('/api/auth/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: newUsername, password: newPassword }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setUserError(data.error || 'Failed to create user.');
-      } else {
-        setUserSuccess('User registered successfully!');
-        setNewUsername('');
-        setNewPassword('');
-        fetchUsers(); // Refresh users list
-      }
-    } catch (err) {
-      console.error(err);
-      setUserError('An error occurred. Please try again.');
-    } finally {
-      setIsCreatingUser(false);
-    }
-  };
 
   // Tab Header Details
   const getHeaderDetails = () => {
@@ -268,6 +202,8 @@ export default function Dashboard() {
         return { title: 'Analytics Insights', sub: 'Call conversion metrics and charts' };
       case 'email':
         return { title: 'Email Activity Tracker', sub: 'Automated workflow notification logs' };
+      case 'settings':
+        return { title: 'Settings', sub: 'Configure database connection and manage active user accounts' };
       case 'pipeline':
       default:
         return { title: 'Lead Pipeline', sub: 'Manage clients gathered from Vapi call bots' };
@@ -282,7 +218,6 @@ export default function Dashboard() {
       {/* Sidebar navigation */}
       <Sidebar 
         isDemoMode={isDemoMode} 
-        onOpenSettings={() => setIsSettingsOpen(true)}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
       />
@@ -392,10 +327,14 @@ export default function Dashboard() {
                 fontWeight: 700,
                 fontSize: '13px',
               }}>
-                AK
+                {currentUser?.name 
+                  ? currentUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                  : currentUser?.username?.slice(0, 2).toUpperCase() || 'AD'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#16191D' }}>Areeba K.</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#16191D' }}>
+                  {currentUser?.name || currentUser?.username || 'Administrator'}
+                </span>
                 <span style={{ fontSize: '11px', color: '#9AA1AD', fontWeight: 500 }}>Admin</span>
               </div>
             </div>
@@ -458,7 +397,27 @@ export default function Dashboard() {
                 />
               )}
               {activeTab === 'email' && (
-                <EmailView />
+                <EmailView leads={filteredLeads} />
+              )}
+              {activeTab === 'settings' && (
+                <SettingsView 
+                  isDemoMode={isDemoMode}
+                  dbUrlInitial={dbUrl}
+                  dbAnonKeyInitial={dbAnonKey}
+                  onSaveDbSettings={(url, key) => {
+                    localStorage.setItem('supabase_client_url', url);
+                    localStorage.setItem('supabase_client_anon_key', key);
+                    alert('Database credentials saved! Reloading to apply connection settings.');
+                    window.location.reload();
+                  }}
+                  onClearDbSettings={() => {
+                    localStorage.removeItem('supabase_client_url');
+                    localStorage.removeItem('supabase_client_anon_key');
+                    alert('Cleared credentials! CRM will run in Mock/Demo mode.');
+                    window.location.reload();
+                  }}
+                  onProfileUpdate={fetchSession}
+                />
               )}
               {activeTab === 'pipeline' && (
                 <div style={{ animation: 'fadeUp 0.3s ease', height: '100%' }}>
@@ -499,251 +458,7 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Modal: Database Settings configuration */}
-      {isSettingsOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(5, 5, 8, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '24px'
-        }}>
-          <div 
-            className="glass-panel" 
-            style={{
-              width: '100%',
-              maxWidth: '500px',
-              padding: '24px',
-              border: '1px solid #EBECEF',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)',
-              animation: 'fadeUp 0.3s ease forwards',
-              background: '#FFFFFF',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Database size={18} color="#E8483D" />
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#16191D' }}>Workspace Settings</h3>
-              </div>
-              <button
-                onClick={() => {
-                  setIsSettingsOpen(false);
-                  setUserError('');
-                  setUserSuccess('');
-                }}
-                style={{
-                  background: '#FAFBFC',
-                  border: '1px solid #EBECEF',
-                  color: '#9AA1AD',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* Tabs Selector */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #EBECEF', marginBottom: '20px', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setSettingsTab('database')}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: settingsTab === 'database' ? '2px solid #E8483D' : '2px solid transparent',
-                  color: settingsTab === 'database' ? '#E8483D' : '#5A616E',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)'
-                }}
-              >
-                Database Connection
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettingsTab('users')}
-                style={{
-                  padding: '10px 16px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: settingsTab === 'users' ? '2px solid #E8483D' : '2px solid transparent',
-                  color: settingsTab === 'users' ? '#E8483D' : '#5A616E',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)'
-                }}
-              >
-                User Accounts
-              </button>
-            </div>
-
-            {settingsTab === 'database' ? (
-              <div>
-                <p style={{ fontSize: '0.85rem', color: '#5A616E', marginBottom: '20px', lineHeight: '1.4' }}>
-                  Enter your Supabase database parameters. This stores them in your browser local storage to communicate directly with your hosted PostgreSQL tables.
-                </p>
-
-                <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
-                      Supabase URL
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://your-project.supabase.co"
-                      value={dbUrl}
-                      onChange={(e) => setDbUrl(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
-                      Supabase Anon Key
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                      value={dbAnonKey}
-                      onChange={(e) => setDbAnonKey(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setDbUrl('');
-                        setDbAnonKey('');
-                        localStorage.removeItem('supabase_client_url');
-                        localStorage.removeItem('supabase_client_anon_key');
-                        alert('Cleared credentials! CRM will run in Mock/Demo mode.');
-                        setIsSettingsOpen(false);
-                        window.location.reload();
-                      }}
-                    >
-                      Clear Config
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                    >
-                      Save & Connect
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div>
-                {/* User management tab */}
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#16191D', marginBottom: '12px' }}>
-                  Create New User Account
-                </h4>
-
-                {userError && (
-                  <div style={{
-                    backgroundColor: '#FDEBE9',
-                    border: '1px solid #F6D5CF',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    marginBottom: '14px',
-                    fontSize: '0.8rem',
-                    color: '#E8483D',
-                    fontWeight: 600
-                  }}>
-                    {userError}
-                  </div>
-                )}
-
-                {userSuccess && (
-                  <div style={{
-                    backgroundColor: '#DCFCE7',
-                    border: '1px solid #BBF7D0',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    marginBottom: '14px',
-                    fontSize: '0.8rem',
-                    color: '#16A34A',
-                    fontWeight: 600
-                  }}>
-                    {userSuccess}
-                  </div>
-                )}
-
-                <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="text"
-                        placeholder="Username"
-                        value={newUsername}
-                        onChange={(e) => setNewUsername(e.target.value)}
-                        required
-                        style={{ height: '38px', fontSize: '0.82rem' }}
-                      />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="password"
-                        placeholder="Password"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                        style={{ height: '38px', fontSize: '0.82rem' }}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ alignSelf: 'flex-end', height: '36px', padding: '0 16px', fontSize: '0.82rem' }}
-                    disabled={isCreatingUser}
-                  >
-                    {isCreatingUser ? 'Registering...' : 'Register User'}
-                  </button>
-                </form>
-
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#5A616E', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '10px' }}>
-                  Registered Operators
-                </h4>
-
-                <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #EBECEF', borderRadius: '10px', padding: '10px', backgroundColor: '#FAFBFC' }}>
-                  {users.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#9AA1AD', fontSize: '0.8rem', padding: '20px 0' }}>No users found.</p>
-                  ) : (
-                    users.map(u => (
-                      <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#FFFFFF', border: '1px solid #EBECEF', borderRadius: '8px' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700 }}>{u.username}</span>
-                        <span style={{ fontSize: '0.72rem', color: '#9AA1AD', fontWeight: 600 }}>
-                          {new Date(u.created_at).toLocaleDateString([], { dateStyle: 'short' })}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

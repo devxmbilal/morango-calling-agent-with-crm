@@ -5,6 +5,7 @@ import path from 'path';
 export interface User {
   id: string;
   username: string;
+  name?: string;
   password_hash: string;
   salt: string;
   created_at: string;
@@ -90,8 +91,28 @@ export const authService = {
     return null;
   },
 
+  // Lookup user by ID
+  async getUserById(id: string): Promise<User | null> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (error || !user) return null;
+        return user as User;
+      } catch (err) {
+        console.error('Supabase get user by id error:', err);
+      }
+    }
+
+    const users = readMockUsers();
+    return users.find(u => u.id === id) || null;
+  },
+
   // Create new user (used in Settings)
-  async createUser(username: string, password: string): Promise<User> {
+  async createUser(username: string, password: string, name?: string): Promise<User> {
     const trimmedUsername = username.trim().toLowerCase();
     const salt = generateSalt();
     const password_hash = await hashPassword(password, salt);
@@ -102,7 +123,8 @@ export const authService = {
         .insert([{
           username: trimmedUsername,
           password_hash,
-          salt
+          salt,
+          name: name || null
         }])
         .select()
         .single();
@@ -120,6 +142,7 @@ export const authService = {
     const newUser: User = {
       id: `user-${Math.random().toString(36).substr(2, 9)}`,
       username: trimmedUsername,
+      name: name || undefined,
       password_hash,
       salt,
       created_at: new Date().toISOString()
@@ -130,6 +153,74 @@ export const authService = {
     return newUser;
   },
 
+  // Update existing user (username, password, display name)
+  async updateUser(id: string, updates: { username?: string; password?: string; name?: string }): Promise<User> {
+    if (isSupabaseConfigured) {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name || null;
+      if (updates.username !== undefined) dbUpdates.username = updates.username.trim().toLowerCase();
+      if (updates.password !== undefined && updates.password.trim() !== '') {
+        const salt = generateSalt();
+        dbUpdates.salt = salt;
+        dbUpdates.password_hash = await hashPassword(updates.password, salt);
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data as User;
+    }
+
+    // Fallback to mock file
+    const users = readMockUsers();
+    const userIndex = users.findIndex(u => u.id === id);
+    if (userIndex === -1) throw new Error('User not found');
+
+    const user = users[userIndex];
+    if (updates.name !== undefined) user.name = updates.name;
+    if (updates.username !== undefined) {
+      const newUsername = updates.username.trim().toLowerCase();
+      if (newUsername !== user.username && users.some(u => u.username === newUsername)) {
+        throw new Error('Username already exists');
+      }
+      user.username = newUsername;
+    }
+    if (updates.password !== undefined && updates.password.trim() !== '') {
+      const salt = generateSalt();
+      user.salt = salt;
+      user.password_hash = await hashPassword(updates.password, salt);
+    }
+
+    users[userIndex] = user;
+    writeMockUsers(users);
+    return user;
+  },
+
+  // Delete user by ID
+  async deleteUser(id: string): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+      return true;
+    }
+
+    const users = readMockUsers();
+    const filtered = users.filter(u => u.id !== id);
+    if (users.length === filtered.length) {
+      return false;
+    }
+    writeMockUsers(filtered);
+    return true;
+  },
+
   // List all users (excluding sensitive details like salt/hash)
   async listUsers(): Promise<Omit<User, 'password_hash' | 'salt'>[]> {
     await this.initializeDefaultUser();
@@ -137,7 +228,7 @@ export const authService = {
     if (isSupabaseConfigured) {
       const { data, error } = await supabase
         .from('users')
-        .select('id, username, created_at')
+        .select('id, username, name, created_at')
         .order('created_at', { ascending: true });
 
       if (!error && data) {
@@ -147,7 +238,7 @@ export const authService = {
 
     // Fallback to mock file
     const users = readMockUsers();
-    return users.map(({ id, username, created_at }) => ({ id, username, created_at }));
+    return users.map(({ id, username, name, created_at }) => ({ id, username, name, created_at }));
   },
 
   // Auto-seed default user admin / admin123
@@ -162,7 +253,7 @@ export const authService = {
 
         if (count === 0) {
           console.log('Seeding default database admin user...');
-          await this.createUser('admin', 'admin123');
+          await this.createUser('admin', 'admin123', 'Administrator');
         }
       } catch (err) {
         console.error('Error auto-seeding db admin:', err);
@@ -179,6 +270,7 @@ export const authService = {
       const defaultAdmin: User = {
         id: 'user-admin',
         username: 'admin',
+        name: 'Administrator',
         password_hash,
         salt,
         created_at: new Date().toISOString()

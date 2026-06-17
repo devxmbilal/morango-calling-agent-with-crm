@@ -107,8 +107,12 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     salt TEXT NOT NULL,
+    name TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Migration statement to safely add column if table already exists
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
 
 -- 8. Set up Row Level Security (RLS) for users table
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;

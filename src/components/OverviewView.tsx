@@ -11,23 +11,66 @@ interface OverviewViewProps {
 }
 
 export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: OverviewViewProps) {
-  // 1. Dynamic Calculations based on leads data
-  const totalCalls = leads.filter(l => l.vapi_call_id || l.recording_url).length + 1245; // Seeded with template baseline
-  const totalMeetings = leads.reduce((acc, l) => acc + (l.meetings?.length || 0), 0) + 83;
-  const activeLeadsCount = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost').length + 211;
+  // 1. Dynamic Calculations based on real leads data (no mock offsets)
+  const totalCalls = leads.filter(l => l.vapi_call_id || l.recording_url).length;
+  const totalMeetings = leads.reduce((acc, l) => acc + (l.meetings?.length || 0), 0);
+  const activeLeadsCount = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost').length;
   
-  const wonLeads = leads.filter(l => l.status === 'Won').length + 22;
-  const totalLeads = leads.length + 211;
-  const conversionRate = ((wonLeads / totalLeads) * 100).toFixed(1);
+  const wonLeads = leads.filter(l => l.status === 'Won').length;
+  const totalLeads = leads.length;
+  const conversionRate = totalLeads === 0 ? '0.0' : ((wonLeads / totalLeads) * 100).toFixed(1);
 
   // Status counts for Snapshot
-  const newCount = leads.filter(l => l.status === 'New Lead').length + 90;
-  const qualifiedCount = leads.filter(l => l.status === 'Qualified').length + 56;
-  const meetingSetCount = leads.filter(l => l.meetings && l.meetings.some(m => m.status === 'Scheduled')).length + 39;
-  const wonCount = leads.filter(l => l.status === 'Won').length + 22;
+  const newCount = leads.filter(l => l.status === 'New Lead').length;
+  const qualifiedCount = leads.filter(l => l.status === 'Qualified').length;
+  const meetingSetCount = leads.filter(l => l.meetings && l.meetings.some(m => m.status === 'Scheduled')).length;
+  const wonCount = leads.filter(l => l.status === 'Won').length;
 
   // Recent leads (limit to 4)
   const recentLeads = leads.slice(0, 4);
+
+  // Calculate day-by-day weekly stats based on actual leads created_at timestamp
+  const getCallTrendData = () => {
+    const counts = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
+    const meetCounts = [0, 0, 0, 0, 0, 0, 0];
+    
+    leads.forEach(lead => {
+      const date = new Date(lead.created_at);
+      let dayIndex = date.getDay() - 1; // Sun=0, Mon=1...
+      if (dayIndex < 0) dayIndex = 6; // Sun
+      
+      counts[dayIndex] = counts[dayIndex] + 1;
+      if (lead.meetings && lead.meetings.length > 0) {
+        meetCounts[dayIndex] = meetCounts[dayIndex] + 1;
+      }
+    });
+
+    const maxVal = Math.max(...counts, ...meetCounts, 1);
+
+    return [
+      { label: 'Mon', call: counts[0], meet: meetCounts[0] },
+      { label: 'Tue', call: counts[1], meet: meetCounts[1] },
+      { label: 'Wed', call: counts[2], meet: meetCounts[2] },
+      { label: 'Thu', call: counts[3], meet: meetCounts[3] },
+      { label: 'Fri', call: counts[4], meet: meetCounts[4] },
+      { label: 'Sat', call: counts[5], meet: meetCounts[5] },
+      { label: 'Sun', call: counts[6], meet: meetCounts[6] }
+    ].map(d => ({
+      label: d.label,
+      callPct: counts.reduce((a, b) => a + b, 0) === 0 ? 0 : Math.round((d.call / maxVal) * 100),
+      meetPct: meetCounts.reduce((a, b) => a + b, 0) === 0 ? 0 : Math.round((d.meet / maxVal) * 100),
+      rawCall: d.call,
+      rawMeet: d.meet
+    }));
+  };
+
+  const trendData = getCallTrendData();
+
+  // Progress bar percentages
+  const newPct = totalLeads === 0 ? 0 : Math.round((newCount / totalLeads) * 100);
+  const qualifiedPct = totalLeads === 0 ? 0 : Math.round((qualifiedCount / totalLeads) * 100);
+  const meetingSetPct = totalLeads === 0 ? 0 : Math.round((meetingSetCount / totalLeads) * 100);
+  const wonPct = totalLeads === 0 ? 0 : Math.round((wonCount / totalLeads) * 100);
 
   // Avatar helper
   const getInitials = (name: string) => {
@@ -52,13 +95,12 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
         
         {/* Total Calls */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px' }}>
-          <div style={{ display: 'flex', align9ms: 'center', justifyContent: 'space-between', margin: '0 0 14px 0' } as any}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px 0' }}>
             <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Phone size={18} color="#4F46E5" />
             </span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16A34A', background: '#DCFCE7', padding: '3px 8px', borderRadius: '7px' }}>+12%</span>
           </div>
-          <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{totalCalls.toLocaleString()}</div>
+          <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{totalCalls}</div>
           <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Total Calls</div>
         </div>
 
@@ -68,7 +110,6 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
             <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#FDEBE9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar size={18} color="#E8483D" />
             </span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16A34A', background: '#DCFCE7', padding: '3px 8px', borderRadius: '7px' }}>+8%</span>
           </div>
           <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{totalMeetings}</div>
           <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Meetings Booked</div>
@@ -76,11 +117,10 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
 
         {/* Conversion Rate */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between', margin: '0 0 14px 0' } as any}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px 0' }}>
             <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <TrendingUp size={18} color="#059669" />
             </span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#16A34A', background: '#DCFCE7', padding: '3px 8px', borderRadius: '7px' }}>+3.1pts</span>
           </div>
           <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{conversionRate}%</div>
           <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Conversion Rate</div>
@@ -92,7 +132,6 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
             <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Users size={18} color="#D97706" />
             </span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#DC2626', background: '#FEE2E2', padding: '3px 8px', borderRadius: '7px' }}>-2%</span>
           </div>
           <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{activeLeadsCount}</div>
           <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Active Leads</div>
@@ -110,27 +149,19 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#16191D' }}>Calls over time</h3>
               <span style={{ fontSize: '12px', color: '#9AA1AD', fontWeight: 500 }}>Last 7 days</span>
             </div>
-            <div style={{ display: 'flex', gap: '14px', fontSize: '11.5px', fontWwight: 600, color: '#6A7180' } as any}>
-              <span style={{ display: 'flex', align9ms: 'center', gap: '6px' } as any}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#E8483D' }}></span>Calls</span>
+            <div style={{ display: 'flex', gap: '14px', fontSize: '11.5px', fontWeight: 600, color: '#6A7180' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#E8483D' }}></span>Calls</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '9px', height: '9px', borderRadius: '3px', background: '#F8C6BE' }}></span>Meetings</span>
             </div>
           </div>
           
           {/* Custom CSS Bar chart elements representing weekly call loads */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '18px', height: '180px', padding: '0 6px' }}>
-            {[
-              { label: 'Mon', call: 62, meet: 30 },
-              { label: 'Tue', call: 78, meet: 40 },
-              { label: 'Wed', call: 54, meet: 26 },
-              { label: 'Thu', call: 90, meet: 52 },
-              { label: 'Fri', call: 72, meet: 38 },
-              { label: 'Sat', call: 44, meet: 20 },
-              { label: 'Sun', call: 34, meet: 14 }
-            ].map((d, index) => (
+            {trendData.map((d, index) => (
               <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '100%', display: 'flex', gap: '4px', alignItems: 'flex-end', height: '160px' }}>
-                  <div style={{ flex: 1, height: `${d.call}%`, background: '#E8483D', borderRadius: '6px 6px 0 0' }}></div>
-                  <div style={{ flex: 1, height: `${d.meet}%`, background: '#F8C6BE', borderRadius: '6px 6px 0 0' }}></div>
+                  <div style={{ flex: 1, height: `${d.callPct}%`, background: '#E8483D', borderRadius: '6px 6px 0 0' }} title={`${d.rawCall} Calls`}></div>
+                  <div style={{ flex: 1, height: `${d.meetPct}%`, background: '#F8C6BE', borderRadius: '6px 6px 0 0' }} title={`${d.rawMeet} Meetings`}></div>
                 </div>
                 <span style={{ fontSize: '11px', color: '#9AA1AD', fontWeight: 600 }}>{d.label}</span>
               </div>
@@ -150,7 +181,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
                 <span style={{ color: '#16191D' }}>{newCount}</span>
               </div>
               <div style={{ height: '8px', background: '#F1F2F4', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ width: '80%', height: '100%', background: '#2563EB', borderRadius: '6px' }}></div>
+                <div style={{ width: `${newPct}%`, height: '100%', background: '#2563EB', borderRadius: '6px' }}></div>
               </div>
             </div>
 
@@ -161,7 +192,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
                 <span style={{ color: '#16191D' }}>{qualifiedCount}</span>
               </div>
               <div style={{ height: '8px', background: '#F1F2F4', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ width: '52%', height: '100%', background: '#D97706', borderRadius: '6px' }}></div>
+                <div style={{ width: `${qualifiedPct}%`, height: '100%', background: '#D97706', borderRadius: '6px' }}></div>
               </div>
             </div>
 
@@ -172,7 +203,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
                 <span style={{ color: '#16191D' }}>{meetingSetCount}</span>
               </div>
               <div style={{ height: '8px', background: '#F1F2F4', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ width: '38%', height: '100%', background: '#E8483D', borderRadius: '6px' }}></div>
+                <div style={{ width: `${meetingSetPct}%`, height: '100%', background: '#E8483D', borderRadius: '6px' }}></div>
               </div>
             </div>
 
@@ -183,7 +214,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
                 <span style={{ color: '#16191D' }}>{wonCount}</span>
               </div>
               <div style={{ height: '8px', background: '#F1F2F4', borderRadius: '6px', overflow: 'hidden' }}>
-                <div style={{ width: '22%', height: '100%', background: '#16A34A', borderRadius: '6px' }}></div>
+                <div style={{ width: `${wonPct}%`, height: '100%', background: '#16A34A', borderRadius: '6px' }}></div>
               </div>
             </div>
 
