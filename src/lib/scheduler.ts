@@ -24,6 +24,40 @@ export function startReminderScheduler() {
  */
 async function checkAndSendReminders() {
   try {
+    // 1. Load configuration settings dynamically
+    let remindersEnabled = true;
+    let reminderTimeMins = 60;
+
+    try {
+      const { supabase, isSupabaseConfigured } = require('./supabase');
+      if (isSupabaseConfigured) {
+        const { data } = await supabase.from('system_settings').select('*');
+        if (data) {
+          const settingsMap: Record<string, string> = {};
+          data.forEach((row: any) => {
+            settingsMap[row.key] = row.value;
+          });
+          remindersEnabled = settingsMap['reminders_enabled'] !== 'false';
+          reminderTimeMins = parseInt(settingsMap['reminder_time'] || '60');
+        }
+      } else {
+        const fs = require('fs');
+        const path = require('path');
+        const MOCK_SETTINGS_FILE = path.join(process.cwd(), 'src/lib/mock_settings.json');
+        if (fs.existsSync(MOCK_SETTINGS_FILE)) {
+          const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
+          remindersEnabled = mockData.reminders_enabled !== 'false';
+          reminderTimeMins = parseInt(mockData.reminder_time || '60');
+        }
+      }
+    } catch (err) {
+      console.error('Error loading reminder scheduler settings:', err);
+    }
+
+    if (!remindersEnabled) {
+      return; // Scheduler is turned off
+    }
+
     const leads = await dbService.getLeads();
     const now = new Date();
 
@@ -39,13 +73,13 @@ async function checkAndSendReminders() {
         const timeDifferenceMs = meetingTime.getTime() - now.getTime();
         const timeDifferenceMins = timeDifferenceMs / (60 * 1000);
 
-        // 1. Same-day reminder (triggered between 0 and 15 minutes before the meeting starts)
-        if (timeDifferenceMins > 0 && timeDifferenceMins <= 15) {
-          const reminderNoteText = `[Reminder] Same-day reminder sent for meeting scheduled at ${meeting.meeting_date}`;
-          const alreadySent = lead.notes?.some(n => n.note.includes(`[Reminder] Same-day reminder sent`));
+        // Pre-meeting reminder (triggered when the meeting starts in <= reminderTimeMins minutes)
+        if (timeDifferenceMins > 0 && timeDifferenceMins <= reminderTimeMins) {
+          const reminderNoteText = `[Reminder] Pre-meeting reminder sent for meeting scheduled at ${meeting.meeting_date}`;
+          const alreadySent = lead.notes?.some(n => n.note.includes(`[Reminder] Pre-meeting reminder sent`));
 
           if (!alreadySent) {
-            console.log(`Sending same-day meeting reminder to ${lead.email} for meeting ${meeting.id}`);
+            console.log(`Sending pre-meeting reminder to ${lead.email} for meeting ${meeting.id} (${Math.round(timeDifferenceMins)} mins before start)`);
             const success = await sendMeetingReminderEmail({
               to: lead.email,
               name: lead.name,
@@ -56,26 +90,6 @@ async function checkAndSendReminders() {
 
             if (success) {
               await dbService.addNote(lead.id, reminderNoteText);
-            }
-          }
-        }
-
-        // 2. 1-hour post-meeting follow-up (triggered between 60 minutes and 95 minutes after meeting start)
-        const minutesSinceStart = (now.getTime() - meetingTime.getTime()) / (60 * 1000);
-        if (minutesSinceStart >= 60 && minutesSinceStart <= 95) {
-          const followUpNoteText = `[Follow-up] Post-meeting thank you sent for meeting scheduled at ${meeting.meeting_date}`;
-          const alreadySent = lead.notes?.some(n => n.note.includes(`[Follow-up] Post-meeting thank you sent`));
-
-          if (!alreadySent) {
-            console.log(`Sending post-meeting follow-up to ${lead.email} for meeting ${meeting.id}`);
-            const success = await sendPostMeetingFollowUpEmail({
-              to: lead.email,
-              name: lead.name,
-              service: lead.service
-            });
-
-            if (success) {
-              await dbService.addNote(lead.id, followUpNoteText);
             }
           }
         }

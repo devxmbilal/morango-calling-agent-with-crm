@@ -56,7 +56,9 @@ export async function GET(req: Request) {
       smtp_pass: '',
       smtp_from: 'sales@morangoai.com',
       meeting_link: 'https://calendly.com/morangoai',
-      admin_email: 'sales@morangoai.com'
+      admin_email: 'sales@morangoai.com',
+      reminders_enabled: 'true',
+      reminder_time: '60'
     };
 
     if (isSupabaseConfigured) {
@@ -91,7 +93,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
-    const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, meeting_link, admin_email } = await req.json();
+    const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, meeting_link, admin_email, reminders_enabled, reminder_time } = await req.json();
 
     if (!smtp_host || !smtp_port || !smtp_user || !smtp_from) {
       return NextResponse.json({ error: 'Required fields: Host, Port, Username, Sender Email' }, { status: 400 });
@@ -118,7 +120,9 @@ export async function POST(req: Request) {
       smtp_pass: finalPassword,
       smtp_from: smtp_from.trim(),
       meeting_link: (meeting_link || 'https://calendly.com/morangoai').trim(),
-      admin_email: (admin_email || 'sales@morangoai.com').trim()
+      admin_email: (admin_email || 'sales@morangoai.com').trim(),
+      reminders_enabled: reminders_enabled === 'false' ? 'false' : 'true',
+      reminder_time: (reminder_time || '60').toString().trim()
     };
 
     if (isSupabaseConfigured) {

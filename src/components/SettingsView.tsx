@@ -31,6 +31,8 @@ export default function SettingsView({
   const [smtpFrom, setSmtpFrom] = useState('sales@morangoai.com');
   const [meetingLink, setMeetingLink] = useState('https://calendly.com/morangoai');
   const [adminEmail, setAdminEmail] = useState('sales@morangoai.com');
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
+  const [reminderTime, setReminderTime] = useState('60');
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
   const [smtpError, setSmtpError] = useState('');
   const [smtpSuccess, setSmtpSuccess] = useState('');
@@ -215,6 +217,8 @@ export default function SettingsView({
         setSmtpFrom(data.smtp_from || 'sales@morangoai.com');
         setMeetingLink(data.meeting_link || 'https://calendly.com/morangoai');
         setAdminEmail(data.admin_email || 'sales@morangoai.com');
+        setRemindersEnabled(data.reminders_enabled !== 'false');
+        setReminderTime(data.reminder_time || '60');
       }
     } catch (err) {
       console.error('Error fetching SMTP settings:', err);
@@ -223,7 +227,7 @@ export default function SettingsView({
 
   const handleSaveSmtpSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim() || !meetingLink.trim() || !adminEmail.trim()) {
+    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim() || !meetingLink.trim() || !adminEmail.trim() || !reminderTime.trim()) {
       setSmtpError('Please fill out all required fields.');
       showToast('All fields except password are required.', 'error');
       return;
@@ -244,7 +248,9 @@ export default function SettingsView({
           smtp_pass: smtpPass,
           smtp_from: smtpFrom,
           meeting_link: meetingLink,
-          admin_email: adminEmail
+          admin_email: adminEmail,
+          reminders_enabled: remindersEnabled ? 'true' : 'false',
+          reminder_time: reminderTime
         })
       });
 
@@ -1013,6 +1019,37 @@ export default function SettingsView({
                   required
                   style={{ height: '40px', fontSize: '0.88rem' }}
                 />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: '#FAFBFC', border: '1px solid #EBECEF', borderRadius: '12px', marginTop: '4px' }}>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: '13.5px', fontWeight: 800, color: '#16191D' }}>Automated Reminders</h4>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: '#16191D', fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={remindersEnabled}
+                    onChange={(e) => setRemindersEnabled(e.target.checked)}
+                    style={{ width: '16px', height: '16px', accentColor: '#E8483D', cursor: 'pointer' }}
+                  />
+                  Enable Pre-meeting Email Reminders
+                </label>
+
+                {remindersEnabled && (
+                  <div style={{ marginTop: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                      Reminder Time (minutes before meeting start)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="60"
+                      min="1"
+                      value={reminderTime}
+                      onChange={(e) => setReminderTime(e.target.value)}
+                      required
+                      style={{ height: '36px', fontSize: '0.82rem', width: '100%' }}
+                    />
+                  </div>
+                )}
               </div>
 
               <button
