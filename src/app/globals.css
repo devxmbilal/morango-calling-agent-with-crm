@@ -260,3 +260,208 @@ input:focus, select:focus, textarea:focus {
 .hover-email-row:hover {
   background-color: #FAFBFC !important;
 }
+
+/* ==========================================
+   MOBILE & TABLET RESPONSIVENESS OVERRIDES
+   ========================================== */
+@media (max-width: 768px) {
+  /* Sidebar Drawer styling overlay */
+  .sidebar-container {
+    position: fixed !important;
+    left: -260px !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    box-shadow: 4px 0 15px rgba(22, 25, 29, 0.1) !important;
+    transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  
+  .sidebar-container.mobile-open {
+    left: 0 !important;
+  }
+
+  /* Overlay backdrop when sidebar drawer is open */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(22, 25, 29, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: fadeUp 0.2s ease;
+  }
+
+  /* Toggler buttons visibility */
+  .mobile-menu-toggle {
+    display: flex !important;
+  }
+  
+  .mobile-sidebar-close {
+    display: flex !important;
+  }
+  
+  .desktop-sub-header {
+    display: none !important;
+  }
+
+  /* Topbar Header layout adjustment */
+  header {
+    padding: 0 16px !important;
+  }
+
+  header > div:last-child {
+    gap: 8px !important;
+  }
+
+  /* Shrink search query bar on mobile */
+  header input {
+    width: 130px !important;
+    font-size: 11px !important;
+    padding-left: 28px !important;
+    height: 34px !important;
+  }
+  
+  header svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  
+  header button.btn-primary {
+    padding: 0 10px !important;
+    height: 34px !important;
+    font-size: 11px !important;
+  }
+
+  /* Profile text hide */
+  .header-profile-widget {
+    border-left: none !important;
+    padding-left: 0 !important;
+  }
+  .header-profile-widget > div:last-child {
+    display: none !important;
+  }
+
+  /* Main workspace padding */
+  .page-container > main > div:last-child {
+    padding: 16px 14px 40px !important;
+  }
+  
+  /* Class-based grid stacking */
+  .overview-split-grid,
+  .meetings-layout-grid,
+  .email-layout-grid,
+  .settings-layout-grid,
+  .users-split-grid,
+  .modal-body-layout {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .modal-side-panel {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #EBECEF !important;
+    padding: 16px !important;
+  }
+
+  .modal-header-layout {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+  }
+
+  .active-user-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .active-user-item > div:last-child {
+    border-left: none !important;
+    padding-left: 0 !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .add-user-section {
+    border-left: none !important;
+    padding-left: 0 !important;
+    border-top: 1px solid #F1F2F4 !important;
+    padding-top: 24px !important;
+    margin-top: 8px !important;
+  }
+
+  .leads-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .leads-toolbar > div {
+    flex-wrap: wrap !important;
+  }
+
+  .leads-toolbar-actions {
+    flex-wrap: wrap !important;
+    align-self: flex-start !important;
+  }
+
+  /* Responsive table container */
+  .table-container-responsive {
+    width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-container-responsive table {
+    min-width: 600px;
+  }
+
+  /* Overwrite gridTemplateColumns styles to stack vertically as fallback */
+  div[style*="grid-template-columns"],
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  /* OverviewView Stat cards (2 columns on mobile instead of 4) */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  div[style*="grid-template-columns: repeat(4, 1fr)"],
+  div[style*="gridTemplateColumns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  @media (max-width: 480px) {
+    .stats-grid,
+    .smtp-config-grid,
+    .form-row-2col,
+    .leads-toolbar-actions {
+      grid-template-columns: 1fr !important;
+      flex-direction: column !important;
+      gap: 16px !important;
+    }
+
+    .leads-toolbar-actions > div,
+    .leads-toolbar-actions > button {
+      width: 100% !important;
+    }
+
+    div[style*="grid-template-columns: repeat(4, 1fr)"],
+    div[style*="gridTemplateColumns: repeat(4, 1fr)"],
+    div[style*="grid-template-columns: repeat(2, 1fr)"],
+    div[style*="gridTemplateColumns: repeat(2, 1fr)"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Modals width */
+  .glass-panel {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+}

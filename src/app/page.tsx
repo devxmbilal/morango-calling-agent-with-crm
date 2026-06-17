@@ -13,7 +13,7 @@ import AnalyticsView from '@/components/AnalyticsView';
 import EmailView from '@/components/EmailView';
 import SettingsView from '@/components/SettingsView';
 import { dbService, Lead } from '@/lib/db';
-import { Search, Plus, Database, X, RefreshCw } from 'lucide-react';
+import { Database, X, RefreshCw, Menu, Bell } from 'lucide-react';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>('overview'); // Default Landing Tab
@@ -26,6 +26,8 @@ export default function Dashboard() {
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string; name?: string } | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   // Settings state (inputs)
   const [dbUrl, setDbUrl] = useState('');
@@ -212,14 +214,94 @@ export default function Dashboard() {
 
   const { title: pageTitle, sub: pageSub } = getHeaderDetails();
 
+  interface NotificationItem {
+    id: string;
+    leadId: string;
+    title: string;
+    description: string;
+    time: string;
+    type: 'new_lead' | 'meeting_soon';
+    lead: Lead;
+  }
+
+  const getNotifications = (): NotificationItem[] => {
+    const list: NotificationItem[] = [];
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    (leads || []).forEach((lead) => {
+      // 1. New Lead notification (created in last 24h)
+      const createdTime = new Date(lead.created_at);
+      if (createdTime >= oneDayAgo && lead.status === 'New Lead') {
+        list.push({
+          id: `new-${lead.id}`,
+          leadId: lead.id,
+          title: 'New Lead Captured',
+          description: `${lead.name} (${lead.service}) from ${lead.source}`,
+          time: createdTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'new_lead',
+          lead: lead
+        });
+      }
+
+      // 2. Upcoming Meeting notification (starting in next 24h)
+      if (lead.meetings) {
+        lead.meetings.forEach((meeting) => {
+          if (meeting.status === 'Scheduled') {
+            const meetingTime = new Date(meeting.meeting_date);
+            const timeDiffMs = meetingTime.getTime() - now.getTime();
+            const timeDiffMins = timeDiffMs / (60 * 1000);
+
+            // Starting in the next 24 hours
+            if (timeDiffMins > 0 && timeDiffMins <= 1440) {
+              list.push({
+                id: `meet-${meeting.id}`,
+                leadId: lead.id,
+                title: 'Upcoming Meeting',
+                description: `Meeting with ${lead.name} starting in ${
+                  timeDiffMins >= 60 ? Math.round(timeDiffMins / 60) + 'h' : Math.round(timeDiffMins) + 'm'
+                }`,
+                time: meetingTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: 'meeting_soon',
+                lead: lead
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Sort: upcoming meetings first, then new leads
+    return list.sort((a, b) => {
+      if (a.type === 'meeting_soon' && b.type !== 'meeting_soon') return -1;
+      if (a.type !== 'meeting_soon' && b.type === 'meeting_soon') return 1;
+      return 0;
+    });
+  };
+
+  const notifications = getNotifications();
+
   return (
     <div className="page-container" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       
+      {/* Sidebar Mobile Overlay Backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="sidebar-overlay"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar navigation */}
       <Sidebar 
         isDemoMode={isDemoMode} 
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileSidebarOpen(false); // Close drawer on selection
+        }}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Dashboard Panel */}
@@ -246,38 +328,36 @@ export default function Dashboard() {
           top: 0,
           zIndex: 5,
         }}>
-          {/* Header Title */}
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-            <h1 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.4px' }}>
-              {pageTitle}
-            </h1>
-            <span style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
-              {pageSub}
-            </span>
+          {/* Header Title with Mobile Toggler */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="mobile-menu-toggle"
+              style={{
+                display: 'none',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Menu size={20} color="#16191D" />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+              <h1 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.4px' }}>
+                {pageTitle}
+              </h1>
+              <span className="desktop-sub-header" style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
+                {pageSub}
+              </span>
+            </div>
           </div>
 
           {/* Search, Action & Profile controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             
-            {/* Search Input wrapper */}
-            <div style={{ position: 'relative', width: '240px' }}>
-              <Search size={15} color="#9AA1AD" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-              <input
-                type="text"
-                placeholder="Search leads, calls…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  paddingLeft: '38px',
-                  borderRadius: '10px',
-                  height: '38px',
-                  background: '#F1F2F4',
-                  borderColor: '#EBECEF',
-                  fontSize: '13px',
-                }}
-              />
-            </div>
-
             {/* Refresh leads list */}
             <button
               onClick={fetchLeads}
@@ -301,20 +381,120 @@ export default function Dashboard() {
               <RefreshCw size={15} color="#5A616E" className={isLoading ? 'spinning' : ''} />
             </button>
 
-            {/* New Lead Manual Button */}
-            <button
-              onClick={() => {
-                setNewLeadDefaultStatus('New Lead');
-                setIsNewLeadOpen(true);
-              }}
-              className="btn btn-primary"
-              style={{ height: '38px', borderRadius: '10px', fontSize: '13px', padding: '0 16px' }}
-            >
-              <Plus size={15} /> New Lead
-            </button>
+            {/* Notification Bell Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  border: '1px solid #EBECEF',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'var(--transition-smooth)',
+                  position: 'relative'
+                }}
+                className="hover-btn"
+                title="Notifications"
+              >
+                <Bell size={16} color="#5A616E" />
+                {notifications.length > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    background: '#E8483D',
+                    color: '#FFF',
+                    fontSize: '9.5px',
+                    fontWeight: 800,
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px solid #FFF',
+                    boxShadow: '0 2px 4px rgba(232, 72, 61, 0.2)'
+                  }}>
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {isNotificationsOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '46px',
+                  right: 0,
+                  width: '300px',
+                  background: '#FFFFFF',
+                  border: '1px solid #EBECEF',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px rgba(22, 25, 29, 0.08)',
+                  zIndex: 100,
+                  padding: '8px 0',
+                  animation: 'fadeUp 0.2s ease'
+                }}>
+                  <div style={{
+                    padding: '8px 16px 12px',
+                    borderBottom: '1px solid #F1F2F4',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#16191D' }}>Notifications</span>
+                    <span style={{ fontSize: '11px', color: '#E8483D', fontWeight: 700, background: '#FDEBE9', padding: '2px 8px', borderRadius: '8px' }}>
+                      {notifications.length} Active
+                    </span>
+                  </div>
+
+                  <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9AA1AD', fontSize: '12px' }}>
+                        No new notifications
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            setSelectedLead(n.lead);
+                            setIsNotificationsOpen(false);
+                          }}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid #FAFBFC',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            transition: 'var(--transition-smooth)'
+                          }}
+                          className="hover-row"
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: n.type === 'meeting_soon' ? '#E8483D' : '#2563EB' }}>
+                              {n.title}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#9AA1AD', fontWeight: 500 }}>{n.time}</span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '11.5px', color: '#5A616E', lineHeight: 1.4, fontWeight: 500 }}>
+                            {n.description}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Profile widget */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', paddingLeft: '6px', borderLeft: '1px solid #EBECEF' }}>
+            <div className="header-profile-widget" style={{ display: 'flex', alignItems: 'center', gap: '9px', paddingLeft: '6px', borderLeft: '1px solid #EBECEF' }}>
               <div style={{
                 width: '36px',
                 height: '36px',

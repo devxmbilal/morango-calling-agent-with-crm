@@ -116,7 +116,7 @@ export default function NewLeadModal({ onClose, onSubmit, defaultStatus = 'New L
           </div>
 
           {/* Contact Details (Phone & Email) */}
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-row-2col" style={{ display: 'flex', gap: '16px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
                 Phone Number *
@@ -153,7 +153,7 @@ export default function NewLeadModal({ onClose, onSubmit, defaultStatus = 'New L
           </div>
 
           {/* Company & Budget */}
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-row-2col" style={{ display: 'flex', gap: '16px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
                 Company Name
@@ -188,7 +188,7 @@ export default function NewLeadModal({ onClose, onSubmit, defaultStatus = 'New L
           </div>
 
           {/* Service & Meeting date */}
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-row-2col" style={{ display: 'flex', gap: '16px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
                 Required Service

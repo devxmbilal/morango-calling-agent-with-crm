@@ -63,7 +63,7 @@ export default function MeetingsView({ leads, onSelectLead }: MeetingsViewProps)
   const cancelledMeetingsCount = meetingsList.filter(m => m.status === 'Cancelled').length;
 
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px', alignItems: 'start' }}>
+    <div className="meetings-layout-grid" style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px', alignItems: 'start' }}>
       
       {/* LEFT COLUMN: MEETINGS LIST */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

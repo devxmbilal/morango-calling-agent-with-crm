@@ -27,6 +27,7 @@ async function checkAndSendReminders() {
     // 1. Load configuration settings dynamically
     let remindersEnabled = true;
     let reminderTimeMins = 60;
+    let adminEmail = 'sales@morangoai.com';
 
     try {
       const { supabase, isSupabaseConfigured } = require('./supabase');
@@ -39,6 +40,7 @@ async function checkAndSendReminders() {
           });
           remindersEnabled = settingsMap['reminders_enabled'] !== 'false';
           reminderTimeMins = parseInt(settingsMap['reminder_time'] || '60');
+          adminEmail = settingsMap['admin_email'] || 'sales@morangoai.com';
         }
       } else {
         const fs = require('fs');
@@ -48,6 +50,7 @@ async function checkAndSendReminders() {
           const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
           remindersEnabled = mockData.reminders_enabled !== 'false';
           reminderTimeMins = parseInt(mockData.reminder_time || '60');
+          adminEmail = mockData.admin_email || 'sales@morangoai.com';
         }
       }
     } catch (err) {
@@ -79,9 +82,15 @@ async function checkAndSendReminders() {
           const alreadySent = lead.notes?.some(n => n.note.includes(`[Reminder] Pre-meeting reminder sent`));
 
           if (!alreadySent) {
-            console.log(`Sending pre-meeting reminder to ${lead.email} for meeting ${meeting.id} (${Math.round(timeDifferenceMins)} mins before start)`);
+            const emailsList = [lead.email];
+            if (adminEmail && adminEmail.trim() && adminEmail.trim() !== lead.email) {
+              emailsList.push(adminEmail.trim());
+            }
+            const toEmailList = emailsList.join(', ');
+            console.log(`Sending pre-meeting reminder to ${toEmailList} for meeting ${meeting.id} (${Math.round(timeDifferenceMins)} mins before start)`);
+            
             const success = await sendMeetingReminderEmail({
-              to: lead.email,
+              to: toEmailList,
               name: lead.name,
               service: lead.service,
               meetingLink: meeting.meeting_link || 'https://meet.google.com/mock-link',

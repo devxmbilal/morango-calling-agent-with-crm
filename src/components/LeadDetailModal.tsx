@@ -117,7 +117,7 @@ export default function LeadDetailModal({
         }}
       >
         {/* Modal Header */}
-        <div style={{
+        <div className="modal-header-layout" style={{
           padding: '24px',
           borderBottom: '1px solid #EBECEF',
           display: 'flex',
@@ -195,10 +195,10 @@ export default function LeadDetailModal({
         </div>
 
         {/* Modal Body */}
-        <div style={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+        <div className="modal-body-layout" style={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
           
           {/* Left Panel: Contact info */}
-          <div style={{
+          <div className="modal-side-panel" style={{
             width: '300px',
             borderRight: '1px solid #EBECEF',
             padding: '24px',

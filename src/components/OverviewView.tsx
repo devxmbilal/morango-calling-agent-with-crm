@@ -91,7 +91,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
     <div style={{ animation: 'fadeUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* STAT CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
         
         {/* Total Calls */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px' }}>
@@ -140,7 +140,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
       </div>
 
       {/* CHART & PIPELINE SNAPSHOT */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px' }}>
+      <div className="overview-split-grid" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px' }}>
         
         {/* Weekly Calls Bar Chart */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '20px' }}>
@@ -224,7 +224,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
       </div>
 
       {/* RECENT LEADS FROM CALLS */}
-      <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '6px 4px 4px' }}>
+      <div className="table-container-responsive" style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '6px 4px 4px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 10px' }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#16191D' }}>Recent leads from calls</h3>
           <button 

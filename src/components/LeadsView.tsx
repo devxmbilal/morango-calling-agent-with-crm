@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Lead } from '@/lib/db';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 interface LeadsViewProps {
   leads: Lead[];
@@ -14,11 +14,23 @@ type FilterStatus = 'All' | 'New Lead' | 'Qualified' | 'Won';
 
 export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: LeadsViewProps) {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter lists
+  // Filter lists by status and search query
   const filtered = leads.filter((lead) => {
-    if (activeFilter === 'All') return true;
-    return lead.status === activeFilter;
+    const matchesStatus = activeFilter === 'All' || lead.status === activeFilter;
+    if (!matchesStatus) return false;
+
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      lead.name.toLowerCase().includes(query) ||
+      (lead.email && lead.email.toLowerCase().includes(query)) ||
+      (lead.phone && lead.phone.includes(query)) ||
+      (lead.company && lead.company.toLowerCase().includes(query)) ||
+      lead.service.toLowerCase().includes(query) ||
+      lead.status.toLowerCase().includes(query)
+    );
   });
 
   // Count helper
@@ -59,10 +71,10 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
     <div style={{ animation: 'fadeUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
       {/* TOOLBAR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+      <div className="leads-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
         
         {/* Filters Grid */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {(['All', 'New Lead', 'Qualified', 'Won'] as FilterStatus[]).map((tab) => {
             const isActive = activeFilter === tab;
             const label = tab === 'New Lead' ? 'New' : tab === 'All' ? 'All leads' : tab;
@@ -88,33 +100,57 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
           })}
         </div>
 
-        {/* Add Lead Action Button */}
-        <button
-          onClick={() => onAddLeadClick('New Lead')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '7px',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: '#FFFFFF',
-            background: '#E8483D',
-            border: 'none',
-            padding: '9px 16px',
-            borderRadius: '10px',
-            cursor: 'pointer',
-            transition: 'var(--transition-smooth)'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#d03d33'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#E8483D'}
-        >
-          <Plus size={15} /> Add Lead
-        </button>
+        {/* Search Input and Add Lead Button */}
+        <div className="leads-toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', width: '200px' }}>
+            <Search size={14} color="#9AA1AD" style={{ position: 'absolute', left: '12px', top: '11px' }} />
+            <input
+              type="text"
+              placeholder="Search leads..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                paddingLeft: '38px',
+                borderRadius: '10px',
+                height: '36px',
+                background: '#FAFBFC',
+                borderColor: '#EBECEF',
+                fontSize: '12.5px',
+                width: '100%',
+              }}
+            />
+          </div>
+
+          {/* Add Lead Action Button */}
+          <button
+            onClick={() => onAddLeadClick('New Lead')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              background: '#E8483D',
+              border: 'none',
+              padding: '0 16px',
+              height: '36px',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              transition: 'var(--transition-smooth)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#d03d33'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#E8483D'}
+          >
+            <Plus size={15} /> Add Lead
+          </button>
+        </div>
 
       </div>
 
       {/* LEADS TABLE CONTAINER */}
-      <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', overflow: 'hidden' }}>
+      <div className="table-container-responsive" style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', color: '#9AA1AD', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', background: '#FAFBFC' }}>

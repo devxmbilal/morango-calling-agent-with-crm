@@ -154,7 +154,7 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                 )}
 
                 {/* AI Summary & Snippet info */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="calls-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   
                   {/* Summary */}
                   <div>

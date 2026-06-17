@@ -1,16 +1,25 @@
 'use client';
 
 import React from 'react';
-import { Users, Calendar, PhoneCall, GitBranch, BarChart3, Mail, Settings, LogOut } from 'lucide-react';
+import { Users, Calendar, PhoneCall, GitBranch, BarChart3, Mail, Settings, LogOut, X } from 'lucide-react';
 
 interface SidebarProps {
   isDemoMode: boolean;
   onOpenSettings?: () => void;
   activeTab: string;
   onSelectTab: (tab: string) => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelectTab }: SidebarProps) {
+export default function Sidebar({
+  isDemoMode,
+  onOpenSettings,
+  activeTab,
+  onSelectTab,
+  isMobileOpen,
+  onCloseMobile
+}: SidebarProps) {
   
   // Navigation Items with tab identifiers
   const mainNav = [
@@ -27,17 +36,20 @@ export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelec
   ];
 
   return (
-    <aside style={{
-      width: '248px',
-      flexShrink: 0,
-      background: '#FFFFFF',
-      borderRight: '1px solid #EBECEF',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'sticky',
-      top: 0,
-      height: '100vh',
-    }}>
+    <aside 
+      className={`sidebar-container ${isMobileOpen ? 'mobile-open' : ''}`}
+      style={{
+        width: '248px',
+        flexShrink: 0,
+        background: '#FFFFFF',
+        borderRight: '1px solid #EBECEF',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+      }}
+    >
       {/* Brand Header */}
       <div style={{
         padding: '22px 22px 16px',
@@ -72,6 +84,25 @@ export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelec
             CRM Workspace
           </span>
         </div>
+        
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="mobile-sidebar-close"
+            style={{
+              display: 'none',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+              marginLeft: 'auto',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} color="#9AA1AD" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Groups */}
@@ -169,7 +200,7 @@ export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelec
       </nav>
 
       {/* Settings Connection Config Link */}
-      <div style={{ padding: '0 24px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ padding: '0 24px', marginTop: 'auto', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           onClick={() => onSelectTab('settings')}
           style={{
@@ -241,71 +272,6 @@ export default function Sidebar({ isDemoMode, onOpenSettings, activeTab, onSelec
           <LogOut size={13} color="#DC2626" />
           Log Out
         </button>
-      </div>
-
-      {/* Bottom Status Card */}
-      <div style={{
-        marginTop: 'auto',
-        padding: '14px',
-      }}>
-        <div style={{
-          background: 'linear-gradient(135deg,#FDEBE9,#FBE3DE)',
-          border: '1px solid #F6D5CF',
-          borderRadius: '14px',
-          padding: '14px',
-        }}>
-          {/* Vapi Live Status */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '6px',
-          }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#16A34A',
-              boxShadow: '0 0 0 3px #DCFCE7',
-            }}></span>
-            <span style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              color: '#16191D',
-            }}>
-              Vapi Agent Live
-            </span>
-          </div>
-          <p style={{
-            margin: '0 0 10px 0',
-            fontSize: '11px',
-            color: '#7A5650',
-            lineHeight: 1.45,
-            fontWeight: 500,
-          }}>
-            Calls auto-sync to CRM. n8n is delivering follow-up emails.
-          </p>
-
-          {/* Database Connection Node */}
-          <div style={{
-            borderTop: '1px solid rgba(232, 72, 61, 0.15)',
-            paddingTop: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '10px',
-            fontWeight: 700,
-            color: isDemoMode ? '#D97706' : '#16A34A',
-          }}>
-            <span style={{
-              width: '5px',
-              height: '5px',
-              borderRadius: '50%',
-              background: isDemoMode ? '#D97706' : '#16A34A',
-            }} />
-            {isDemoMode ? 'CRM: LOCAL DEMO' : 'CRM: SUPABASE DB'}
-          </div>
-        </div>
       </div>
     </aside>
   );

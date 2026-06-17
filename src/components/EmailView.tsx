@@ -48,7 +48,7 @@ export default function EmailView({ leads }: EmailViewProps) {
   const replyRate = totalSent === 0 ? '0%' : `${Math.round((openedCount / totalSent) * 33)}%`;
 
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
+    <div className="email-layout-grid" style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
       
       {/* LEFT COLUMN: AUTOMATED EMAILS LOG */}
       <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', overflow: 'hidden' }}>

@@ -388,7 +388,7 @@ export default function SettingsView({
   };
 
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '220px 1fr', gap: '24px', alignItems: 'start' }}>
+    <div className="settings-layout-grid" style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '220px 1fr', gap: '24px', alignItems: 'start' }}>
       
       {/* Subtab selection sidebar */}
       <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px', background: '#FFFFFF' }}>
@@ -616,7 +616,7 @@ export default function SettingsView({
 
         {/* SUBTAB 3: USER ACCOUNTS */}
         {activeSubTab === 'users' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
+          <div className="users-split-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
             
             {/* User accounts list */}
             <div>
@@ -747,6 +747,7 @@ export default function SettingsView({
                       return (
                         <div 
                           key={user.id}
+                          className="active-user-item"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -840,7 +841,7 @@ export default function SettingsView({
             </div>
 
             {/* Create new User */}
-            <div style={{ borderLeft: '1px solid #F1F2F4', paddingLeft: '32px' }}>
+            <div className="add-user-section" style={{ borderLeft: '1px solid #F1F2F4', paddingLeft: '32px' }}>
               <h3 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 800, color: '#16191D' }}>Add User</h3>
               <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#9AA1AD', fontWeight: 500 }}>
                 Register a new user with workspace access.
@@ -923,7 +924,7 @@ export default function SettingsView({
             )}
 
             <form onSubmit={handleSaveSmtpSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '16px' }}>
+              <div className="smtp-config-grid" style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
                     SMTP Host
