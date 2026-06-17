@@ -16,9 +16,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid Vapi payload' }, { status: 400 });
     }
 
-    // 1. Handle Function Call (e.g. create_lead)
-    if (message.type === 'function-call') {
-      const { name: functionName, call, arguments: args } = message.functionCall;
+    // 1. Handle Function Call / Tool Calls (e.g. create_lead)
+    if (message.type === 'tool-calls' || message.type === 'function-call') {
+      let toolCallId = '';
+      let functionName = '';
+      let args: any = {};
+      const call = message.call || message.functionCall?.call;
+
+      if (message.type === 'tool-calls' && message.toolCalls && message.toolCalls.length > 0) {
+        const toolCall = message.toolCalls[0];
+        toolCallId = toolCall.id;
+        functionName = toolCall.function?.name || '';
+        
+        const rawArgs = toolCall.function?.arguments;
+        if (typeof rawArgs === 'string') {
+          try {
+            args = JSON.parse(rawArgs);
+          } catch (e) {
+            console.error('Failed to parse toolCall arguments:', e);
+            args = {};
+          }
+        } else if (rawArgs && typeof rawArgs === 'object') {
+          args = rawArgs;
+        }
+      } else if (message.type === 'function-call' && message.functionCall) {
+        toolCallId = message.functionCall.id;
+        functionName = message.functionCall.name;
+        args = message.functionCall.arguments || {};
+      }
 
       if (functionName === 'create_lead') {
         const { name, phone, email, company, service, budget, meeting_date, status, lead_evaluation } = args;
@@ -26,7 +51,7 @@ export async function POST(req: Request) {
         if (!name || !phone || !email) {
           return NextResponse.json({
             results: [{
-              toolCallId: message.functionCall.id,
+              toolCallId: toolCallId,
               result: 'Missing required parameters: name, phone, or email'
             }]
           }, { status: 200 });
@@ -38,7 +63,7 @@ export async function POST(req: Request) {
           if (availability.conflict) {
             return NextResponse.json({
               results: [{
-                toolCallId: message.functionCall.id,
+                toolCallId: toolCallId,
                 result: JSON.stringify({
                   status: 'conflict',
                   message: `The requested time slot is already booked. Please politely ask the caller to choose one of these alternative times instead: ${availability.suggestions?.join(', ')}.`,
@@ -252,7 +277,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
           results: [{
-            toolCallId: message.functionCall.id,
+            toolCallId: toolCallId,
             result: JSON.stringify({
               status: 'success',
               message: 'Lead saved and consultation meeting scheduled successfully in MorangoAI CRM.',
