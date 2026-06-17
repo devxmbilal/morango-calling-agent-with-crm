@@ -113,6 +113,11 @@ export default function Dashboard() {
       )
     );
 
+    // Update selected lead state if it is currently open in detail modal
+    if (selectedLead && selectedLead.id === leadId) {
+      setSelectedLead((prev) => prev ? { ...prev, status: targetStatus } : null);
+    }
+
     try {
       const success = await dbService.updateLeadStatus(leadId, targetStatus);
       if (!success) {
