@@ -27,7 +27,7 @@ export async function POST(req: Request) {
           return NextResponse.json({
             results: [{
               toolCallId: message.functionCall.id,
-              error: 'Missing required parameters: name, phone, or email'
+              result: 'Missing required parameters: name, phone, or email'
             }]
           }, { status: 200 });
         }
@@ -39,11 +39,11 @@ export async function POST(req: Request) {
             return NextResponse.json({
               results: [{
                 toolCallId: message.functionCall.id,
-                result: {
+                result: JSON.stringify({
                   status: 'conflict',
                   message: `The requested time slot is already booked. Please politely ask the caller to choose one of these alternative times instead: ${availability.suggestions?.join(', ')}.`,
                   suggestions: availability.suggestions
-                }
+                })
               }]
             }, { status: 200 }); // Vapi tool returns 200 with result context
           }
@@ -253,12 +253,12 @@ export async function POST(req: Request) {
         return NextResponse.json({
           results: [{
             toolCallId: message.functionCall.id,
-            result: {
+            result: JSON.stringify({
               status: 'success',
               message: 'Lead saved and consultation meeting scheduled successfully in MorangoAI CRM.',
               lead_id: leadId,
               meeting_link: meetingLink
-            }
+            })
           }]
         }, { status: 200 });
       }

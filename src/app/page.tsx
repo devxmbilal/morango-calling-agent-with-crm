@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string; name?: string } | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
   // Settings state (inputs)
   const [dbUrl, setDbUrl] = useState('');
@@ -69,6 +70,16 @@ export default function Dashboard() {
       const storedKey = localStorage.getItem('supabase_client_anon_key') || '';
       setDbUrl(storedUrl);
       setDbAnonKey(storedKey);
+
+      // Load read notifications
+      const storedNotifs = localStorage.getItem('crm_read_notifications');
+      if (storedNotifs) {
+        try {
+          setReadNotificationIds(JSON.parse(storedNotifs));
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   }, []);
 
@@ -232,16 +243,19 @@ export default function Dashboard() {
     (leads || []).forEach((lead) => {
       // 1. New Lead notification (created in last 24h)
       const createdTime = new Date(lead.created_at);
+      const leadNotifId = `new-${lead.id}`;
       if (createdTime >= oneDayAgo && lead.status === 'New Lead') {
-        list.push({
-          id: `new-${lead.id}`,
-          leadId: lead.id,
-          title: 'New Lead Captured',
-          description: `${lead.name} (${lead.service}) from ${lead.source}`,
-          time: createdTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: 'new_lead',
-          lead: lead
-        });
+        if (!readNotificationIds.includes(leadNotifId)) {
+          list.push({
+            id: leadNotifId,
+            leadId: lead.id,
+            title: 'New Lead Captured',
+            description: `${lead.name} (${lead.service}) from ${lead.source}`,
+            time: createdTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'new_lead',
+            lead: lead
+          });
+        }
       }
 
       // 2. Upcoming Meeting notification (starting in next 24h)
@@ -251,20 +265,23 @@ export default function Dashboard() {
             const meetingTime = new Date(meeting.meeting_date);
             const timeDiffMs = meetingTime.getTime() - now.getTime();
             const timeDiffMins = timeDiffMs / (60 * 1000);
+            const meetNotifId = `meet-${meeting.id}`;
 
             // Starting in the next 24 hours
             if (timeDiffMins > 0 && timeDiffMins <= 1440) {
-              list.push({
-                id: `meet-${meeting.id}`,
-                leadId: lead.id,
-                title: 'Upcoming Meeting',
-                description: `Meeting with ${lead.name} starting in ${
-                  timeDiffMins >= 60 ? Math.round(timeDiffMins / 60) + 'h' : Math.round(timeDiffMins) + 'm'
-                }`,
-                time: meetingTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                type: 'meeting_soon',
-                lead: lead
-              });
+              if (!readNotificationIds.includes(meetNotifId)) {
+                list.push({
+                  id: meetNotifId,
+                  leadId: lead.id,
+                  title: 'Upcoming Meeting',
+                  description: `Meeting with ${lead.name} starting in ${
+                    timeDiffMins >= 60 ? Math.round(timeDiffMins / 60) + 'h' : Math.round(timeDiffMins) + 'm'
+                  }`,
+                  time: meetingTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  type: 'meeting_soon',
+                  lead: lead
+                });
+              }
             }
           }
         });
@@ -276,6 +293,23 @@ export default function Dashboard() {
       if (a.type === 'meeting_soon' && b.type !== 'meeting_soon') return -1;
       if (a.type !== 'meeting_soon' && b.type === 'meeting_soon') return 1;
       return 0;
+    });
+  };
+
+  const handleMarkAsRead = (id: string) => {
+    setReadNotificationIds(prev => {
+      const next = [...prev, id];
+      localStorage.setItem('crm_read_notifications', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleMarkAllAsRead = () => {
+    const activeIds = getNotifications().map(n => n.id);
+    setReadNotificationIds(prev => {
+      const next = Array.from(new Set([...prev, ...activeIds]));
+      localStorage.setItem('crm_read_notifications', JSON.stringify(next));
+      return next;
     });
   };
 
@@ -447,9 +481,34 @@ export default function Dashboard() {
                     alignItems: 'center'
                   }}>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#16191D' }}>Notifications</span>
-                    <span style={{ fontSize: '11px', color: '#E8483D', fontWeight: 700, background: '#FDEBE9', padding: '2px 8px', borderRadius: '8px' }}>
-                      {notifications.length} Active
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAllAsRead();
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#E8483D',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#FDEBE9'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          Clear all
+                        </button>
+                      )}
+                      <span style={{ fontSize: '11px', color: '#E8483D', fontWeight: 700, background: '#FDEBE9', padding: '2px 8px', borderRadius: '8px' }}>
+                        {notifications.length} Active
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
@@ -462,6 +521,7 @@ export default function Dashboard() {
                         <div
                           key={n.id}
                           onClick={() => {
+                            handleMarkAsRead(n.id);
                             setSelectedLead(n.lead);
                             setIsNotificationsOpen(false);
                           }}
