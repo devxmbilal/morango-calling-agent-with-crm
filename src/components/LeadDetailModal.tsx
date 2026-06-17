@@ -27,6 +27,8 @@ export default function LeadDetailModal({
   const [meetingLink, setMeetingLink] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [isSubmittingMeeting, setIsSubmittingMeeting] = useState(false);
+  const [sendEmailOnSchedule, setSendEmailOnSchedule] = useState(true);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
 
   const handleNoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +44,75 @@ export default function LeadDetailModal({
     }
   };
 
+  const handleSendMail = async (meet: Meeting | { meeting_date: string; meeting_link?: string }) => {
+    if (!lead.email) {
+      alert('This lead has no email address configured.');
+      return;
+    }
+    const meetId = ('id' in meet) ? meet.id : 'temp-schedule';
+    setSendingEmailId(meetId);
+    try {
+      const response = await fetch('/api/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: lead.email,
+          name: lead.name,
+          service: lead.service,
+          meetingLink: meet.meeting_link,
+          meetingDate: meet.meeting_date,
+        }),
+      });
+      if (response.ok) {
+        alert('Confirmation email sent successfully!');
+      } else {
+        const data = await response.json();
+        alert(`Failed to send email: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send email due to network error.');
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
+
   const handleMeetingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!meetingDate) return;
     setIsSubmittingMeeting(true);
     try {
       await onAddMeeting(meetingDate, meetingLink || undefined);
+      
+      if (sendEmailOnSchedule) {
+        if (!lead.email) {
+          alert('Meeting scheduled, but could not send email: Lead has no email address configured.');
+        } else {
+          try {
+            const response = await fetch('/api/email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: lead.email,
+                name: lead.name,
+                service: lead.service,
+                meetingLink: meetingLink || undefined,
+                meetingDate: meetingDate,
+              }),
+            });
+            if (!response.ok) {
+              const data = await response.json();
+              alert(`Meeting scheduled, but email failed: ${data.error || 'Unknown error'}`);
+            } else {
+              alert('Meeting scheduled and confirmation email sent successfully!');
+            }
+          } catch (err) {
+            console.error('Failed to send confirmation email:', err);
+            alert('Meeting scheduled, but failed to send confirmation email.');
+          }
+        }
+      }
+
       setMeetingDate('');
       setMeetingLink('');
     } catch (err) {
@@ -502,14 +567,25 @@ export default function LeadDetailModal({
                           />
                         </div>
                       </div>
-                      <button
-                        type="submit"
-                        className="btn btn-primary"
-                        style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}
-                        disabled={isSubmittingMeeting}
-                      >
-                        <Plus size={16} /> Schedule
-                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#5A616E', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={sendEmailOnSchedule}
+                            onChange={(e) => setSendEmailOnSchedule(e.target.checked)}
+                            style={{ width: 'auto', cursor: 'pointer' }}
+                          />
+                          Send Confirmation Email to Lead
+                        </label>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          disabled={isSubmittingMeeting}
+                        >
+                          <Plus size={16} /> Schedule
+                        </button>
+                      </div>
                     </form>
                   </div>
 
@@ -554,13 +630,53 @@ export default function LeadDetailModal({
                               </a>
                             )}
                           </div>
-                          <span className="tag" style={{
-                            backgroundColor: meet.status === 'Scheduled' ? '#DBEAFE' : '#DCFCE7',
-                            color: meet.status === 'Scheduled' ? '#2563EB' : '#16A34A',
-                            border: 'none'
-                          }}>
-                            {meet.status}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {meet.status === 'Scheduled' && (
+                              <button
+                                type="button"
+                                onClick={() => handleSendMail(meet)}
+                                disabled={sendingEmailId === meet.id}
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  borderRadius: '6px',
+                                  backgroundColor: '#FAFBFC',
+                                  border: '1px solid #EBECEF',
+                                  color: '#5A616E',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (sendingEmailId !== meet.id) {
+                                    e.currentTarget.style.backgroundColor = '#FDEBE9';
+                                    e.currentTarget.style.borderColor = '#F6D5AF';
+                                    e.currentTarget.style.color = '#E8483D';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (sendingEmailId !== meet.id) {
+                                    e.currentTarget.style.backgroundColor = '#FAFBFC';
+                                    e.currentTarget.style.borderColor = '#EBECEF';
+                                    e.currentTarget.style.color = '#5A616E';
+                                  }
+                                }}
+                              >
+                                <Mail size={12} />
+                                {sendingEmailId === meet.id ? 'Sending...' : 'Send Mail'}
+                              </button>
+                            )}
+                            <span className="tag" style={{
+                              backgroundColor: meet.status === 'Scheduled' ? '#DBEAFE' : '#DCFCE7',
+                              color: meet.status === 'Scheduled' ? '#2563EB' : '#16A34A',
+                              border: 'none'
+                            }}>
+                              {meet.status}
+                            </span>
+                          </div>
                         </div>
                       ))
                     )}
