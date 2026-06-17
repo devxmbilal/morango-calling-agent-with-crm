@@ -172,6 +172,54 @@ export const dbService = {
     return data as Note;
   },
 
+  async updateNote(noteId: string, leadId: string, noteText: string): Promise<boolean> {
+    if (this.isDemoMode) {
+      const leads = getLocalData();
+      const updated = leads.map((l) => {
+        if (l.id === leadId) {
+          return {
+            ...l,
+            notes: (l.notes || []).map((n) => (n.id === noteId ? { ...n, note: noteText } : n)),
+          };
+        }
+        return l;
+      });
+      setLocalData(updated);
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('notes')
+      .update({ note: noteText })
+      .eq('id', noteId);
+
+    return !error;
+  },
+
+  async deleteNote(noteId: string, leadId: string): Promise<boolean> {
+    if (this.isDemoMode) {
+      const leads = getLocalData();
+      const updated = leads.map((l) => {
+        if (l.id === leadId) {
+          return {
+            ...l,
+            notes: (l.notes || []).filter((n) => n.id !== noteId),
+          };
+        }
+        return l;
+      });
+      setLocalData(updated);
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', noteId);
+
+    return !error;
+  },
+
   async addMeeting(leadId: string, meetingDate: string, meetingLink?: string): Promise<Meeting> {
     if (this.isDemoMode) {
       const leads = getLocalData();

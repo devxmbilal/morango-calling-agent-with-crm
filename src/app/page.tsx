@@ -150,6 +150,46 @@ export default function Dashboard() {
     }
   };
 
+  // Update Note
+  const handleUpdateNote = async (noteId: string, noteText: string) => {
+    if (!selectedLead) return;
+    try {
+      const success = await dbService.updateNote(noteId, selectedLead.id, noteText);
+      if (success) {
+        const updatedNotes = (selectedLead.notes || []).map((n) =>
+          n.id === noteId ? { ...n, note: noteText } : n
+        );
+        const updatedLead = {
+          ...selectedLead,
+          notes: updatedNotes
+        };
+        setSelectedLead(updatedLead);
+        setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Delete Note
+  const handleDeleteNote = async (noteId: string) => {
+    if (!selectedLead) return;
+    try {
+      const success = await dbService.deleteNote(noteId, selectedLead.id);
+      if (success) {
+        const updatedNotes = (selectedLead.notes || []).filter((n) => n.id !== noteId);
+        const updatedLead = {
+          ...selectedLead,
+          notes: updatedNotes
+        };
+        setSelectedLead(updatedLead);
+        setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Add Meeting
   const handleAddMeeting = async (date: string, link?: string) => {
     if (!selectedLead) return;
@@ -689,6 +729,8 @@ export default function Dashboard() {
           onClose={() => setSelectedLead(null)}
           onStatusChange={(status) => handleMoveLead(selectedLead.id, status)}
           onAddNote={handleAddNote}
+          onUpdateNote={handleUpdateNote}
+          onDeleteNote={handleDeleteNote}
           onAddMeeting={handleAddMeeting}
           onDeleteLead={handleDeleteLead}
         />

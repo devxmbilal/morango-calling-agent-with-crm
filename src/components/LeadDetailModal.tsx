@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { Lead, Meeting, Note } from '@/lib/db';
-import { X, Calendar, MessageSquare, Mail, Phone, Briefcase, DollarSign, Tag, Clock, Plus } from 'lucide-react';
+import { X, Calendar, MessageSquare, Mail, Phone, Briefcase, DollarSign, Tag, Clock, Plus, Edit, Trash } from 'lucide-react';
 
 interface LeadDetailModalProps {
   lead: Lead;
   onClose: () => void;
   onStatusChange: (status: Lead['status']) => void;
   onAddNote: (note: string) => Promise<void>;
+  onUpdateNote?: (noteId: string, noteText: string) => Promise<void>;
+  onDeleteNote?: (noteId: string) => Promise<void>;
   onAddMeeting: (date: string, link?: string) => Promise<void>;
   onDeleteLead?: (id: string) => Promise<void>;
 }
@@ -18,6 +20,8 @@ export default function LeadDetailModal({
   onClose,
   onStatusChange,
   onAddNote,
+  onUpdateNote,
+  onDeleteNote,
   onAddMeeting,
   onDeleteLead
 }: LeadDetailModalProps) {
@@ -41,6 +45,38 @@ export default function LeadDetailModal({
       console.error(err);
     } finally {
       setIsSubmittingNote(false);
+    }
+  };
+
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
+  const [isUpdatingNote, setIsUpdatingNote] = useState(false);
+  const [isDeletingNoteId, setIsDeletingNoteId] = useState<string | null>(null);
+
+  const handleUpdateNoteSubmit = async (noteId: string) => {
+    if (!onUpdateNote) return;
+    setIsUpdatingNote(true);
+    try {
+      await onUpdateNote(noteId, editingNoteText);
+      setEditingNoteId(null);
+      setEditingNoteText('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUpdatingNote(false);
+    }
+  };
+
+  const handleDeleteNoteClick = async (noteId: string) => {
+    if (!onDeleteNote) return;
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    setIsDeletingNoteId(noteId);
+    try {
+      await onDeleteNote(noteId);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDeletingNoteId(null);
     }
   };
 
@@ -505,24 +541,126 @@ export default function LeadDetailModal({
                         No notes yet. Add the first internal note above.
                       </div>
                     ) : (
-                      lead.notes.map((note) => (
-                        <div
-                          key={note.id}
-                          style={{
-                            background: '#FAFBFC',
-                            border: '1px solid #EBECEF',
-                            borderRadius: '10px',
-                            padding: '14px'
-                          }}
-                        >
-                          <p style={{ fontSize: '0.85rem', color: '#16191D', marginBottom: '8px', lineHeight: '1.45', fontWeight: 500 }}>
-                            {note.note}
-                          </p>
-                          <p style={{ fontSize: '0.7rem', color: '#9AA1AD', fontWeight: 600 }}>
-                            {new Date(note.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                          </p>
-                        </div>
-                      ))
+                      lead.notes.map((note) => {
+                        const isEditing = editingNoteId === note.id;
+                        return (
+                          <div
+                            key={note.id}
+                            style={{
+                              background: '#FAFBFC',
+                              border: '1px solid #EBECEF',
+                              borderRadius: '10px',
+                              padding: '14px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}
+                          >
+                            {isEditing ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <input
+                                  type="text"
+                                  value={editingNoteText}
+                                  onChange={(e) => setEditingNoteText(e.target.value)}
+                                  disabled={isUpdatingNote}
+                                  style={{ width: '100%' }}
+                                  autoFocus
+                                />
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingNoteId(null);
+                                      setEditingNoteText('');
+                                    }}
+                                    disabled={isUpdatingNote}
+                                    style={{
+                                      padding: '4px 10px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: 700,
+                                      borderRadius: '6px',
+                                      backgroundColor: '#FAFBFC',
+                                      border: '1px solid #EBECEF',
+                                      color: '#5A616E',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateNoteSubmit(note.id)}
+                                    disabled={isUpdatingNote || !editingNoteText.trim()}
+                                    className="btn btn-primary"
+                                    style={{
+                                      padding: '4px 10px',
+                                      fontSize: '0.75rem',
+                                    }}
+                                  >
+                                    {isUpdatingNote ? 'Saving...' : 'Save'}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: '0.85rem', color: '#16191D', margin: 0, lineHeight: '1.45', fontWeight: 500 }}>
+                                  {note.note}
+                                </p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                  <p style={{ fontSize: '0.7rem', color: '#9AA1AD', fontWeight: 600, margin: 0 }}>
+                                    {new Date(note.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </p>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingNoteId(note.id);
+                                        setEditingNoteText(note.note);
+                                      }}
+                                      disabled={isDeletingNoteId === note.id}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#9AA1AD',
+                                        cursor: 'pointer',
+                                        padding: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'color 0.2s'
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#2563EB'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9AA1AD'}
+                                      title="Edit Note"
+                                    >
+                                      <Edit size={14} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteNoteClick(note.id)}
+                                      disabled={isDeletingNoteId === note.id}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#9AA1AD',
+                                        cursor: 'pointer',
+                                        padding: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        transition: 'color 0.2s'
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#E8483D'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9AA1AD'}
+                                      title="Delete Note"
+                                    >
+                                      <Trash size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
