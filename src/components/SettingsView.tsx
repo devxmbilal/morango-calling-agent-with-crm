@@ -905,11 +905,43 @@ export default function SettingsView({
 
         {/* SUBTAB 4: MAIL CONFIGURATION */}
         {activeSubTab === 'mail' && (
-          <div style={{ maxWidth: '540px' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Nodemailer SMTP Configuration</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
-              Configure SMTP credentials to automatically trigger meeting confirmation emails.
-            </p>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Nodemailer SMTP Configuration</h3>
+                <p style={{ margin: 0, fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
+                  Configure SMTP credentials to automatically trigger meeting confirmation emails.
+                </p>
+              </div>
+              {smtpUser && smtpPass && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  background: '#DCFCE7',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: '30px',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  color: '#15803D',
+                  boxShadow: '0 2px 4px rgba(22,163,74,0.05)'
+                }}>
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: '#16A34A',
+                    display: 'inline-block',
+                    boxShadow: '0 0 0 2px rgba(22,163,74,0.2)'
+                  }} />
+                  Connected: <strong style={{ color: '#14532D', textDecoration: 'underline' }}>{smtpUser}</strong>
+                </div>
+              )}
+            </div>
+
+            <div style={{ maxWidth: '540px' }}>
+
 
             {smtpError && (
               <div style={{ backgroundColor: '#FDEBE9', border: '1px solid #F6D5CF', borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', fontSize: '0.82rem', color: '#E8483D', fontWeight: 600 }}>
@@ -948,7 +980,7 @@ export default function SettingsView({
                     value={smtpPort}
                     onChange={(e) => setSmtpPort(e.target.value)}
                     required
-                    style={{ height: '40px', fontSize: '0.88rem' }}
+                    style={{ height: '40px', fontSize: '0.88rem', width: '100%' }}
                   />
                 </div>
               </div>
@@ -1068,6 +1100,7 @@ export default function SettingsView({
                 )}
               </button>
             </form>
+            </div>
           </div>
         )}
 

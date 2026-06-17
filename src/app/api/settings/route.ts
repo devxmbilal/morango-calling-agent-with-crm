@@ -126,14 +126,42 @@ export async function POST(req: Request) {
     };
 
     if (isSupabaseConfigured) {
-      // Upsert keys sequentially
-      const upserts = Object.keys(newSettings).map(async (key) => {
-        return supabase.from('system_settings').upsert({
-          key,
-          value: newSettings[key]
-        });
-      });
-      await Promise.all(upserts);
+      // Check if key exists first, then update if exists, otherwise insert
+      for (const key of Object.keys(newSettings)) {
+        const { data: existing, error: fetchError } = await supabase
+          .from('system_settings')
+          .select('key')
+          .eq('key', key)
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error(`Error checking key ${key}:`, fetchError);
+          return NextResponse.json({ error: `Database error checking '${key}': ${fetchError.message}` }, { status: 500 });
+        }
+
+        if (existing) {
+          // Perform update to avoid triggering INSERT RLS policy
+          const { error: updateError } = await supabase
+            .from('system_settings')
+            .update({ value: newSettings[key] })
+            .eq('key', key);
+
+          if (updateError) {
+            console.error(`Error updating setting ${key} in Supabase:`, updateError);
+            return NextResponse.json({ error: `Database error updating '${key}': ${updateError.message}.` }, { status: 500 });
+          }
+        } else {
+          // Perform insert since row does not exist
+          const { error: insertError } = await supabase
+            .from('system_settings')
+            .insert({ key, value: newSettings[key] });
+
+          if (insertError) {
+            console.error(`Error inserting setting ${key} to Supabase:`, insertError);
+            return NextResponse.json({ error: `Database error inserting '${key}': ${insertError.message}. Please verify Row-Level Security (RLS) policies on 'system_settings' table.` }, { status: 500 });
+          }
+        }
+      }
     } else {
       writeMockSettings(newSettings);
     }
