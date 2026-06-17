@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Database, User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X } from 'lucide-react';
+import { Database, User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, Mail } from 'lucide-react';
 
 interface SettingsViewProps {
   isDemoMode: boolean;
@@ -20,8 +20,18 @@ export default function SettingsView({
   onClearDbSettings,
   onProfileUpdate
 }: SettingsViewProps) {
-  // Tabs: 'profile' | 'database' | 'users'
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'database' | 'users'>('profile');
+  // Tabs: 'profile' | 'database' | 'users' | 'mail'
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'database' | 'users' | 'mail'>('profile');
+
+  // SMTP Config states
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('587');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+  const [smtpFrom, setSmtpFrom] = useState('sales@morangoai.com');
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
+  const [smtpError, setSmtpError] = useState('');
+  const [smtpSuccess, setSmtpSuccess] = useState('');
 
   // Database Connection states
   const [dbUrl, setDbUrl] = useState(dbUrlInitial);
@@ -191,6 +201,65 @@ export default function SettingsView({
     }
   };
 
+  const fetchSmtpSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setSmtpHost(data.smtp_host || '');
+        setSmtpPort(data.smtp_port || '587');
+        setSmtpUser(data.smtp_user || '');
+        setSmtpPass(data.smtp_pass || '');
+        setSmtpFrom(data.smtp_from || 'sales@morangoai.com');
+      }
+    } catch (err) {
+      console.error('Error fetching SMTP settings:', err);
+    }
+  };
+
+  const handleSaveSmtpSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim()) {
+      setSmtpError('Please fill out all required fields.');
+      showToast('All SMTP fields except password are required.', 'error');
+      return;
+    }
+
+    setSmtpError('');
+    setSmtpSuccess('');
+    setIsSavingSmtp(true);
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtp_host: smtpHost,
+          smtp_port: smtpPort,
+          smtp_user: smtpUser,
+          smtp_pass: smtpPass,
+          smtp_from: smtpFrom
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setSmtpError(data.error || 'Failed to save SMTP settings.');
+        showToast(data.error || 'Failed to save SMTP settings.', 'error');
+      } else {
+        setSmtpSuccess('SMTP configurations updated successfully!');
+        showToast('SMTP credentials saved!', 'success');
+        fetchSmtpSettings(); // Reload
+      }
+    } catch (err) {
+      console.error(err);
+      setSmtpError('Failed to save SMTP configurations.');
+      showToast('Failed to save SMTP configurations.', 'error');
+    } finally {
+      setIsSavingSmtp(false);
+    }
+  };
+
   useEffect(() => {
     fetchSession();
   }, []);
@@ -198,6 +267,8 @@ export default function SettingsView({
   useEffect(() => {
     if (activeSubTab === 'users') {
       fetchUsers();
+    } else if (activeSubTab === 'mail') {
+      fetchSmtpSettings();
     }
   }, [activeSubTab]);
 
@@ -368,6 +439,26 @@ export default function SettingsView({
         >
           <Shield size={15} color={activeSubTab === 'users' ? '#E8483D' : '#9AA1AD'} />
           User Accounts
+        </button>
+        <button
+          onClick={() => setActiveSubTab('mail')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: activeSubTab === 'mail' ? '#FDEBE9' : 'transparent',
+            color: activeSubTab === 'mail' ? '#E8483D' : '#5A616E',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            textAlign: 'left'
+          }}
+        >
+          <Mail size={15} color={activeSubTab === 'mail' ? '#E8483D' : '#9AA1AD'} />
+          Mail Configuration
         </button>
       </div>
 
@@ -796,6 +887,115 @@ export default function SettingsView({
               </form>
             </div>
 
+          </div>
+        )}
+
+        {/* SUBTAB 4: MAIL CONFIGURATION */}
+        {activeSubTab === 'mail' && (
+          <div style={{ maxWidth: '540px' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Nodemailer SMTP Configuration</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
+              Configure SMTP credentials to automatically trigger meeting confirmation emails.
+            </p>
+
+            {smtpError && (
+              <div style={{ backgroundColor: '#FDEBE9', border: '1px solid #F6D5CF', borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', fontSize: '0.82rem', color: '#E8483D', fontWeight: 600 }}>
+                {smtpError}
+              </div>
+            )}
+
+            {smtpSuccess && (
+              <div style={{ backgroundColor: '#DCFCE7', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '12px 14px', marginBottom: '18px', fontSize: '0.82rem', color: '#16A34A', fontWeight: 600 }}>
+                {smtpSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSmtpSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                    SMTP Host
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="mail.example.com"
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    required
+                    style={{ height: '40px', fontSize: '0.88rem' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                    SMTP Port
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="587"
+                    value={smtpPort}
+                    onChange={(e) => setSmtpPort(e.target.value)}
+                    required
+                    style={{ height: '40px', fontSize: '0.88rem' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                  SMTP Username / Email
+                </label>
+                <input
+                  type="text"
+                  placeholder="user@example.com"
+                  value={smtpUser}
+                  onChange={(e) => setSmtpUser(e.target.value)}
+                  required
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                  SMTP Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={smtpPass}
+                  onChange={(e) => setSmtpPass(e.target.value)}
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                  Sender Email (From)
+                </label>
+                <input
+                  type="email"
+                  placeholder="noreply@example.com"
+                  value={smtpFrom}
+                  onChange={(e) => setSmtpFrom(e.target.value)}
+                  required
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ alignSelf: 'flex-start', height: '40px', padding: '0 24px', marginTop: '8px' }}
+                disabled={isSavingSmtp}
+              >
+                {isSavingSmtp ? (
+                  <>
+                    <RefreshCw size={14} className="spinning" /> Saving...
+                  </>
+                ) : (
+                  'Save SMTP configurations'
+                )}
+              </button>
+            </form>
           </div>
         )}
 

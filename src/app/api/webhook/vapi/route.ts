@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { checkMeetingConflict, createCalendarEvent } from '@/lib/calendar';
+import { sendConfirmationEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -23,50 +25,80 @@ export async function POST(req: Request) {
               toolCallId: message.functionCall.id,
               error: 'Missing required parameters: name, phone, or email'
             }]
-          }, { status: 200 }); // Vapi expects 200 even on parameter error
-        }
-
-        if (!isSupabaseConfigured) {
-          return NextResponse.json({
-            results: [{
-              toolCallId: message.functionCall.id,
-              result: {
-                message: 'Lead received successfully in Demo Mode!',
-                lead_details: args
-              }
-            }]
           }, { status: 200 });
         }
 
-        // Save Lead to Supabase
-        const { data: lead, error: leadError } = await supabase
-          .from('leads')
-          .insert([{
-            name,
-            phone,
-            email,
-            company: company || null,
-            service: service || 'AI Agent',
-            budget: budget || null,
-            source: 'Vapi Call',
-            status: 'New Lead',
-            vapi_call_id: call?.id || null
-          }])
-          .select()
-          .single();
+        // 1. Availability check: check for scheduling conflicts
+        if (meeting_date) {
+          const availability = await checkMeetingConflict(meeting_date);
+          if (availability.conflict) {
+            return NextResponse.json({
+              results: [{
+                toolCallId: message.functionCall.id,
+                result: {
+                  status: 'conflict',
+                  message: `The requested time slot is already booked. Please politely ask the caller to choose one of these alternative times instead: ${availability.suggestions?.join(', ')}.`,
+                  suggestions: availability.suggestions
+                }
+              }]
+            }, { status: 200 }); // Vapi tool returns 200 with result context
+          }
+        }
 
-        if (leadError) throw leadError;
-
-        // If meeting date is supplied, create the meeting
-        if (meeting_date && lead) {
-          await supabase
-            .from('meetings')
+        // 2. Save Lead
+        let leadId = 'demo-lead-id';
+        if (isSupabaseConfigured) {
+          const { data: lead, error: leadError } = await supabase
+            .from('leads')
             .insert([{
-              lead_id: lead.id,
-              meeting_date: new Date(meeting_date).toISOString(),
-              meeting_link: 'https://meet.google.com/mock-vapi-meeting',
-              status: 'Scheduled'
-            }]);
+              name,
+              phone,
+              email,
+              company: company || null,
+              service: service || 'AI Agent',
+              budget: budget || null,
+              source: 'Vapi Call',
+              status: 'New Lead',
+              vapi_call_id: call?.id || null
+            }])
+            .select()
+            .single();
+
+          if (leadError) throw leadError;
+          if (lead) leadId = lead.id;
+        }
+
+        // 3. Create Google Calendar Appointment & Send Nodemailer Confirmation
+        let meetingLink = 'https://meet.google.com/mock-vapi-meeting';
+        if (meeting_date) {
+          const calendarEvent = await createCalendarEvent({
+            name,
+            email,
+            service: service || 'AI Agent',
+            budget: budget || undefined,
+            meetingDate: meeting_date
+          });
+
+          meetingLink = calendarEvent.meetingLink;
+
+          if (isSupabaseConfigured) {
+            await supabase
+              .from('meetings')
+              .insert([{
+                lead_id: leadId,
+                meeting_date: new Date(meeting_date).toISOString(),
+                meeting_link: meetingLink,
+                status: 'Scheduled'
+              }]);
+          }
+
+          // Trigger email notification
+          await sendConfirmationEmail({
+            to: email,
+            name,
+            service: service || 'AI Agent',
+            meetingLink
+          });
         }
 
         return NextResponse.json({
@@ -74,8 +106,9 @@ export async function POST(req: Request) {
             toolCallId: message.functionCall.id,
             result: {
               status: 'success',
-              message: 'Lead created successfully inside MorangoAI CRM.',
-              lead_id: lead?.id
+              message: 'Lead saved and consultation meeting scheduled successfully in MorangoAI CRM.',
+              lead_id: leadId,
+              meeting_link: meetingLink
             }
           }]
         }, { status: 200 });

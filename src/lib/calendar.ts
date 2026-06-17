@@ -1,0 +1,221 @@
+import { google } from 'googleapis';
+import { supabase, isSupabaseConfigured } from './supabase';
+import { dbService, Lead, Meeting } from './db';
+
+// Extract keys from environment
+const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
+const PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
+const isGoogleCalendarConfigured = 
+  SERVICE_ACCOUNT_EMAIL.trim() !== '' && 
+  PRIVATE_KEY.trim() !== '';
+
+// Initialize Google Calendar API client using JWT authentication
+function getCalendarClient() {
+  if (!isGoogleCalendarConfigured) return null;
+
+  const auth = new google.auth.JWT({
+    email: SERVICE_ACCOUNT_EMAIL,
+    key: PRIVATE_KEY,
+    scopes: ['https://www.googleapis.com/auth/calendar']
+  });
+
+  return google.calendar({ version: 'v3', auth });
+}
+
+/**
+ * Checks if a requested meeting date/time overlaps with any scheduled meetings in the database.
+ * If a conflict is found, generates 3 alternate free slots.
+ */
+export async function checkMeetingConflict(
+  requestedDateStr: string
+): Promise<{ conflict: boolean; suggestions?: string[] }> {
+  try {
+    const requestedDate = new Date(requestedDateStr);
+    if (isNaN(requestedDate.getTime())) {
+      return { conflict: false }; // Invalid date fallback
+    }
+
+    // A meeting occupies a 30-minute slot.
+    // There is a conflict if another meeting is scheduled within ±29 minutes of the requested start time.
+    const startWindow = new Date(requestedDate.getTime() - 29 * 60 * 1000).toISOString();
+    const endWindow = new Date(requestedDate.getTime() + 29 * 60 * 1000).toISOString();
+
+    let scheduledMeetings: { meeting_date: string }[] = [];
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select('meeting_date')
+        .eq('status', 'Scheduled')
+        .gte('meeting_date', startWindow)
+        .lte('meeting_date', endWindow);
+
+      if (!error && data) {
+        scheduledMeetings = data;
+      }
+    } else {
+      // Demo/localStorage mode checks
+      const leads = await dbService.getLeads();
+      const allMeetings: Meeting[] = [];
+      leads.forEach(l => {
+        if (l.meetings) {
+          l.meetings.forEach(m => {
+            if (m.status === 'Scheduled') {
+              allMeetings.push(m);
+            }
+          });
+        }
+      });
+
+      scheduledMeetings = allMeetings.filter(m => {
+        const mTime = new Date(m.meeting_date).getTime();
+        const rTime = requestedDate.getTime();
+        return Math.abs(mTime - rTime) < 29 * 60 * 1000;
+      });
+    }
+
+    if (scheduledMeetings.length === 0) {
+      return { conflict: false };
+    }
+
+    // Generate alternate slot suggestions (starting from +30 minutes in increments of 30m)
+    const suggestions: string[] = [];
+    let testOffsetMinutes = 30;
+
+    // Fetch all existing scheduled meetings to check suggestions against
+    let allScheduledMeetings: Date[] = [];
+    if (isSupabaseConfigured) {
+      const { data } = await supabase
+        .from('meetings')
+        .select('meeting_date')
+        .eq('status', 'Scheduled');
+      if (data) {
+        allScheduledMeetings = data.map(d => new Date(d.meeting_date));
+      }
+    } else {
+      const leads = await dbService.getLeads();
+      leads.forEach(l => {
+        if (l.meetings) {
+          l.meetings.forEach(m => {
+            if (m.status === 'Scheduled') {
+              allScheduledMeetings.push(new Date(m.meeting_date));
+            }
+          });
+        }
+      });
+    }
+
+    while (suggestions.length < 3 && testOffsetMinutes < 1440) { // Limit to 24 hours search
+      const potentialDate = new Date(requestedDate.getTime() + testOffsetMinutes * 60 * 1000);
+      
+      // Don't suggest slots outside working hours (9 AM to 6 PM client local time, e.g. UTC/Local)
+      const hour = potentialDate.getHours();
+      if (hour < 9 || hour >= 18) {
+        // Skip night hours, move to next day 9 AM
+        potentialDate.setHours(9, 0, 0, 0);
+        if (potentialDate.getTime() <= requestedDate.getTime() + testOffsetMinutes * 60 * 1000) {
+          potentialDate.setDate(potentialDate.getDate() + 1);
+        }
+        testOffsetMinutes = Math.round((potentialDate.getTime() - requestedDate.getTime()) / (60 * 1000));
+        continue;
+      }
+
+      // Check if this potential date has a collision
+      const hasCollision = allScheduledMeetings.some(scheduledDate => {
+        return Math.abs(scheduledDate.getTime() - potentialDate.getTime()) < 29 * 60 * 1000;
+      });
+
+      if (!hasCollision) {
+        const readableTime = potentialDate.toLocaleString('en-US', {
+          weekday: 'long',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        suggestions.push(readableTime);
+      }
+
+      testOffsetMinutes += 30; // Move to next 30 min slot
+    }
+
+    return { conflict: true, suggestions };
+  } catch (err) {
+    console.error('Error checking meeting conflict:', err);
+    return { conflict: false };
+  }
+}
+
+/**
+ * Creates an event in Google Calendar with Google Meet enabled.
+ * Returns the meeting link, start time, and Google Calendar event ID.
+ */
+export async function createCalendarEvent(args: {
+  name: string;
+  email: string;
+  service: string;
+  budget?: string;
+  meetingDate: string;
+}): Promise<{ meetingLink: string; startTime: string; eventId: string }> {
+  const defaultMeetingLink = 'https://meet.google.com/mock-vapi-meeting';
+  const eventDate = new Date(args.meetingDate);
+  const endEventDate = new Date(eventDate.getTime() + 30 * 60 * 1000); // 30 mins slot
+
+  const calendar = getCalendarClient();
+
+  if (!calendar) {
+    console.log('Google Calendar is not configured or in Demo Mode. Returning mock details.');
+    return {
+      meetingLink: defaultMeetingLink,
+      startTime: eventDate.toISOString(),
+      eventId: `mock-event-${Math.random().toString(36).substring(7)}`
+    };
+  }
+
+  try {
+    const response = await calendar.events.insert({
+      calendarId: CALENDAR_ID,
+      conferenceDataVersion: 1,
+      requestBody: {
+        summary: `MorangoAI Consultation: ${args.name}`,
+        description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist.`,
+        start: {
+          dateTime: eventDate.toISOString(),
+          timeZone: 'UTC',
+        },
+        end: {
+          dateTime: endEventDate.toISOString(),
+          timeZone: 'UTC',
+        },
+        attendees: [{ email: args.email }],
+        conferenceData: {
+          createRequest: {
+            requestId: `vapi-meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            conferenceSolutionKey: {
+              type: 'hangoutsMeet',
+            },
+          },
+        },
+      },
+    });
+
+    const event = response.data;
+    const meetingLink = event.hangoutLink || defaultMeetingLink;
+
+    return {
+      meetingLink,
+      startTime: event.start?.dateTime || eventDate.toISOString(),
+      eventId: event.id || ''
+    };
+  } catch (err) {
+    console.error('Failed to create Google Calendar event, falling back to mock link:', err);
+    return {
+      meetingLink: defaultMeetingLink,
+      startTime: eventDate.toISOString(),
+      eventId: `mock-fallback-event-${Date.now()}`
+    };
+  }
+}

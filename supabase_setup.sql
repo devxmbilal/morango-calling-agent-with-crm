@@ -122,3 +122,17 @@ CREATE POLICY "Allow public insert for users" ON users FOR INSERT WITH CHECK (tr
 CREATE POLICY "Allow public update for users" ON users FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete for users" ON users FOR DELETE USING (true);
 
+-- 9. Create system_settings table
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Set up Row Level Security (RLS) for system_settings table
+ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public select for system_settings" ON system_settings FOR SELECT USING (true);
+CREATE POLICY "Allow public insert for system_settings" ON system_settings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update for system_settings" ON system_settings FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete for system_settings" ON system_settings FOR DELETE USING (true);
+
