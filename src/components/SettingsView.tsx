@@ -24,11 +24,13 @@ export default function SettingsView({
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'database' | 'users' | 'mail'>('profile');
 
   // SMTP Config states
-  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
   const [smtpPort, setSmtpPort] = useState('587');
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
   const [smtpFrom, setSmtpFrom] = useState('sales@morangoai.com');
+  const [meetingLink, setMeetingLink] = useState('https://calendly.com/morangoai');
+  const [adminEmail, setAdminEmail] = useState('sales@morangoai.com');
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
   const [smtpError, setSmtpError] = useState('');
   const [smtpSuccess, setSmtpSuccess] = useState('');
@@ -211,6 +213,8 @@ export default function SettingsView({
         setSmtpUser(data.smtp_user || '');
         setSmtpPass(data.smtp_pass || '');
         setSmtpFrom(data.smtp_from || 'sales@morangoai.com');
+        setMeetingLink(data.meeting_link || 'https://calendly.com/morangoai');
+        setAdminEmail(data.admin_email || 'sales@morangoai.com');
       }
     } catch (err) {
       console.error('Error fetching SMTP settings:', err);
@@ -219,9 +223,9 @@ export default function SettingsView({
 
   const handleSaveSmtpSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim()) {
+    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim() || !meetingLink.trim() || !adminEmail.trim()) {
       setSmtpError('Please fill out all required fields.');
-      showToast('All SMTP fields except password are required.', 'error');
+      showToast('All fields except password are required.', 'error');
       return;
     }
 
@@ -238,7 +242,9 @@ export default function SettingsView({
           smtp_port: smtpPort,
           smtp_user: smtpUser,
           smtp_pass: smtpPass,
-          smtp_from: smtpFrom
+          smtp_from: smtpFrom,
+          meeting_link: meetingLink,
+          admin_email: adminEmail
         })
       });
 
@@ -976,6 +982,34 @@ export default function SettingsView({
                   placeholder="noreply@example.com"
                   value={smtpFrom}
                   onChange={(e) => setSmtpFrom(e.target.value)}
+                  required
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                  Default Meeting Link / Calendly URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://calendly.com/morangoai"
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
+                  required
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
+                  Admin Notification Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
                   required
                   style={{ height: '40px', fontSize: '0.88rem' }}
                 />

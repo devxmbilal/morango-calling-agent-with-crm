@@ -1,6 +1,8 @@
 import { google } from 'googleapis';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { dbService, Lead, Meeting } from './db';
+import fs from 'fs';
+import path from 'path';
 
 // Extract keys from environment
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
@@ -160,16 +162,36 @@ export async function createCalendarEvent(args: {
   budget?: string;
   meetingDate: string;
 }): Promise<{ meetingLink: string; startTime: string; eventId: string }> {
-  const defaultMeetingLink = 'https://meet.google.com/mock-vapi-meeting';
+  // Load dynamic meeting link fallback (from database settings or local config)
+  let fallbackMeetingLink = 'https://calendly.com/morangoai';
+  try {
+    if (isSupabaseConfigured) {
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
+      if (data && data.value) {
+        fallbackMeetingLink = data.value;
+      }
+    } else {
+      const MOCK_SETTINGS_FILE = path.join(process.cwd(), 'src/lib/mock_settings.json');
+      if (fs.existsSync(MOCK_SETTINGS_FILE)) {
+        const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
+        if (mockData.meeting_link) {
+          fallbackMeetingLink = mockData.meeting_link;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching fallback meeting link:', err);
+  }
+
   const eventDate = new Date(args.meetingDate);
   const endEventDate = new Date(eventDate.getTime() + 30 * 60 * 1000); // 30 mins slot
 
   const calendar = getCalendarClient();
 
   if (!calendar) {
-    console.log('Google Calendar is not configured or in Demo Mode. Returning mock details.');
+    console.log('Google Calendar is not configured or in Demo Mode. Returning fallback meeting link:', fallbackMeetingLink);
     return {
-      meetingLink: defaultMeetingLink,
+      meetingLink: fallbackMeetingLink,
       startTime: eventDate.toISOString(),
       eventId: `mock-event-${Math.random().toString(36).substring(7)}`
     };
@@ -203,7 +225,7 @@ export async function createCalendarEvent(args: {
     });
 
     const event = response.data;
-    const meetingLink = event.hangoutLink || defaultMeetingLink;
+    const meetingLink = event.hangoutLink || fallbackMeetingLink;
 
     return {
       meetingLink,
@@ -211,9 +233,9 @@ export async function createCalendarEvent(args: {
       eventId: event.id || ''
     };
   } catch (err) {
-    console.error('Failed to create Google Calendar event, falling back to mock link:', err);
+    console.error('Failed to create Google Calendar event, falling back to custom link:', err);
     return {
-      meetingLink: defaultMeetingLink,
+      meetingLink: fallbackMeetingLink,
       startTime: eventDate.toISOString(),
       eventId: `mock-fallback-event-${Date.now()}`
     };

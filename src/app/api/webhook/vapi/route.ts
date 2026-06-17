@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { checkMeetingConflict, createCalendarEvent } from '@/lib/calendar';
-import { sendConfirmationEmail } from '@/lib/email';
+import { sendConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
+import { startReminderScheduler } from '@/lib/scheduler';
 
 export async function POST(req: Request) {
   try {
+    // Guarantee scheduler is running
+    startReminderScheduler();
+
     const payload = await req.json();
     const { message } = payload;
 
@@ -68,8 +72,49 @@ export async function POST(req: Request) {
           if (lead) leadId = lead.id;
         }
 
+        // Fetch admin email dynamically to trigger notification
+        let adminNotificationEmail = 'sales@morangoai.com';
+        try {
+          if (isSupabaseConfigured) {
+            const { data } = await supabase.from('system_settings').select('value').eq('key', 'admin_email').single();
+            if (data && data.value) {
+              adminNotificationEmail = data.value;
+            }
+          } else {
+            const fs = require('fs');
+            const path = require('path');
+            const MOCK_SETTINGS_FILE = path.join(process.cwd(), 'src/lib/mock_settings.json');
+            if (fs.existsSync(MOCK_SETTINGS_FILE)) {
+              const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
+              if (mockData.admin_email) {
+                adminNotificationEmail = mockData.admin_email;
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching admin email setting:', err);
+        }
+
+        // Trigger admin alert email
+        await sendAdminNotificationEmail({
+          to: adminNotificationEmail,
+          lead: {
+            name,
+            phone,
+            email,
+            service: service || 'AI Agent',
+            budget: budget || undefined,
+            meetingDate: meeting_date || undefined
+          }
+        });
+
         // 3. Create Google Calendar Appointment & Send Nodemailer Confirmation
-        let meetingLink = 'https://meet.google.com/mock-vapi-meeting';
+        // Generate a realistic Google Meet link format (e.g. meet.google.com/abc-defg-hij)
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+        const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+        const part3 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
+        let meetingLink = `https://meet.google.com/${part1}-${part2}-${part3}`;
         if (meeting_date) {
           const calendarEvent = await createCalendarEvent({
             name,
@@ -97,7 +142,8 @@ export async function POST(req: Request) {
             to: email,
             name,
             service: service || 'AI Agent',
-            meetingLink
+            meetingLink,
+            meetingDate: meeting_date
           });
         }
 

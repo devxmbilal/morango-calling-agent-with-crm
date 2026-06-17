@@ -50,11 +50,13 @@ export async function GET(req: Request) {
     }
 
     const config: Record<string, string> = {
-      smtp_host: '',
+      smtp_host: 'smtp.gmail.com',
       smtp_port: '587',
       smtp_user: '',
       smtp_pass: '',
-      smtp_from: 'sales@morangoai.com'
+      smtp_from: 'sales@morangoai.com',
+      meeting_link: 'https://calendly.com/morangoai',
+      admin_email: 'sales@morangoai.com'
     };
 
     if (isSupabaseConfigured) {
@@ -89,7 +91,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
     }
 
-    const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from } = await req.json();
+    const { smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from, meeting_link, admin_email } = await req.json();
 
     if (!smtp_host || !smtp_port || !smtp_user || !smtp_from) {
       return NextResponse.json({ error: 'Required fields: Host, Port, Username, Sender Email' }, { status: 400 });
@@ -114,7 +116,9 @@ export async function POST(req: Request) {
       smtp_port: smtp_port.toString().trim(),
       smtp_user: smtp_user.trim(),
       smtp_pass: finalPassword,
-      smtp_from: smtp_from.trim()
+      smtp_from: smtp_from.trim(),
+      meeting_link: (meeting_link || 'https://calendly.com/morangoai').trim(),
+      admin_email: (admin_email || 'sales@morangoai.com').trim()
     };
 
     if (isSupabaseConfigured) {
