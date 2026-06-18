@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { sendConfirmationEmail } from '@/lib/email';
 import { verifyJWT } from '@/lib/jwt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'morango_default_secret_key_12345!';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+  if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is missing.');
+}
 
 async function checkAuth(req: Request): Promise<boolean> {
   const cookieHeader = req.headers.get('Cookie') || '';
@@ -10,6 +13,7 @@ async function checkAuth(req: Request): Promise<boolean> {
   if (!tokenCookie) return false;
   
   const token = tokenCookie.split('=')[1];
+  if (!token) return false;
   const payload = await verifyJWT(token, JWT_SECRET);
   return !!payload;
 }
@@ -27,11 +31,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Required fields: to, name, service, meetingDate' }, { status: 400 });
     }
 
+    let activeMeetingLink = meetingLink;
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      try {
+        const { supabase, isSupabaseConfigured } = require('@/lib/supabase');
+        if (isSupabaseConfigured) {
+          const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
+          if (data && data.value) {
+            activeMeetingLink = data.value;
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching fallback link in email route:', err);
+      }
+    }
+
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      return NextResponse.json({ error: 'No meeting link configured. Please set a meeting link in settings first.' }, { status: 400 });
+    }
+
     const emailSent = await sendConfirmationEmail({
       to,
       name,
       service,
-      meetingLink: meetingLink ,
+      meetingLink: activeMeetingLink,
       meetingDate,
     });
 

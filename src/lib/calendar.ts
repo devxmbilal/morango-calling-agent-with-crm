@@ -172,14 +172,6 @@ export async function createCalendarEvent(args: {
       if (data && data.value) {
         fallbackMeetingLink = data.value;
       }
-    } else {
-      const MOCK_SETTINGS_FILE = path.join(process.cwd(), 'src/lib/mock_settings.json');
-      if (fs.existsSync(MOCK_SETTINGS_FILE)) {
-        const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
-        if (mockData.meeting_link) {
-          fallbackMeetingLink = mockData.meeting_link;
-        }
-      }
     }
   } catch (err) {
     console.error('Error fetching fallback meeting link:', err);

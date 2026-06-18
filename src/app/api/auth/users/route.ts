@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { authService } from '@/lib/auth';
 import { verifyJWT } from '@/lib/jwt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'morango_default_secret_key_12345!';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is missing.');
+}
 
 // Middleware authorization check helper
 async function checkAuth(req: Request): Promise<boolean> {
@@ -11,6 +14,7 @@ async function checkAuth(req: Request): Promise<boolean> {
   if (!tokenCookie) return false;
   
   const token = tokenCookie.split('=')[1];
+  if (!token) return false;
   const payload = await verifyJWT(token, JWT_SECRET);
   return !!payload;
 }

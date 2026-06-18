@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyJWT } from '@/lib/jwt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'morango_default_secret_key_12345!';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is missing.');
+}
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

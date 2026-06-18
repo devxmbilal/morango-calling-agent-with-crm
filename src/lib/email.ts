@@ -136,11 +136,6 @@ export async function sendConfirmationEmail(args: {
           if (data && data.value) {
             activeMeetingLink = data.value;
           }
-        } else {
-          const mockSettings = readMockSettings();
-          if (mockSettings['meeting_link']) {
-            activeMeetingLink = mockSettings['meeting_link'];
-          }
         }
       } catch (err) {
         console.error('Error fetching fallback link for confirmation email:', err);
@@ -320,11 +315,6 @@ export async function sendMeetingReminderEmail(args: {
           const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
           if (data && data.value) {
             activeMeetingLink = data.value;
-          }
-        } else {
-          const mockSettings = readMockSettings();
-          if (mockSettings['meeting_link']) {
-            activeMeetingLink = mockSettings['meeting_link'];
           }
         }
       } catch (err) {

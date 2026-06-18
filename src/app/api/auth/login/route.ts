@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { authService } from '@/lib/auth';
 import { signJWT } from '@/lib/jwt';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'morango_default_secret_key_12345!';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is missing.');
+}
 
 export async function POST(req: Request) {
   try {

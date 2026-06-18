@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { verifyJWT } from '@/lib/jwt';
 import { authService } from '@/lib/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'morango_default_secret_key_12345!';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is missing.');
+}
 
 export async function GET(req: Request) {
   try {
@@ -13,6 +16,9 @@ export async function GET(req: Request) {
     }
 
     const token = tokenCookie.split('=')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
+    }
     const payload = await verifyJWT(token, JWT_SECRET);
     if (!payload || !payload.userId) {
       return NextResponse.json({ error: 'Invalid token.' }, { status: 401 });
