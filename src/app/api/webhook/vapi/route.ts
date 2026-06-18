@@ -291,11 +291,22 @@ export async function POST(req: Request) {
 
     // 2. Handle End of Call Report (Transcript and Recording)
     if (message.type === 'end-of-call-report') {
-      const { call, transcript, recordingUrl } = message;
+      const { call } = message;
       const customerPhone = call?.customer?.number;
 
+      // Extract transcript and recordingUrl from all possible locations
+      const transcriptText = message.transcript || call?.transcript || payload.transcript || '';
+      const recordingUrlText = message.recordingUrl || message.recording_url || call?.recordingUrl || call?.recording_url || payload.recordingUrl || payload.recording_url || '';
+
+      console.log('Received end-of-call-report event:', {
+        callId: call?.id,
+        phone: customerPhone,
+        hasTranscript: !!transcriptText,
+        hasRecording: !!recordingUrlText
+      });
+
       if (!isSupabaseConfigured) {
-        console.log('Received end-of-call-report in demo mode:', { customerPhone, recordingUrl });
+        console.log('Received end-of-call-report in demo mode:', { customerPhone, recordingUrlText });
         return NextResponse.json({ success: true, mode: 'demo' }, { status: 200 });
       }
 
@@ -311,29 +322,41 @@ export async function POST(req: Request) {
       }
 
       if (!matchedLeadId && customerPhone) {
-        const { data } = await supabase
+        // Robust phone matching: strip non-digits and compare trailing digits
+        const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+        const lastNine = cleanPhone.slice(-9);
+        
+        const { data: phoneLeads } = await supabase
           .from('leads')
-          .select('id')
-          .eq('phone', customerPhone)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data) matchedLeadId = data.id;
+          .select('id, phone');
+          
+        if (phoneLeads) {
+          const matched = phoneLeads.find(l => {
+            const lClean = (l.phone || '').replace(/[^0-9]/g, '');
+            return lClean === cleanPhone || (lastNine && lClean.endsWith(lastNine));
+          });
+          if (matched) matchedLeadId = matched.id;
+        }
       }
 
       if (matchedLeadId) {
         // 2. Update Lead Details (Transcript and Recording URL)
-        await supabase
+        const { error: updateError } = await supabase
           .from('leads')
           .update({
-            transcript: transcript || null,
-            recording_url: recordingUrl || null
+            transcript: transcriptText || null,
+            recording_url: recordingUrlText || null
           })
           .eq('id', matchedLeadId);
-        console.log(`Saved transcript and recording URL for lead ${matchedLeadId}`);
+
+        if (updateError) {
+          console.error(`Error updating transcript/recording for lead ${matchedLeadId}:`, updateError);
+        } else {
+          console.log(`Saved transcript and recording URL for lead ${matchedLeadId}`);
+        }
 
         // 3. Save AI Call Summary as a CRM Note
-        const summary = payload.summary || call?.analysis?.summary || '';
+        const summary = payload.summary || call?.analysis?.summary || message.summary || '';
         if (summary) {
           const summaryNoteText = `[Call Summary] ${summary}`;
           try {
@@ -354,6 +377,8 @@ export async function POST(req: Request) {
             console.error('Error saving call summary note:', err);
           }
         }
+      } else {
+        console.warn(`Could not match any lead for call ID ${call?.id} or phone ${customerPhone}`);
       }
 
       return NextResponse.json({ success: true }, { status: 200 });
