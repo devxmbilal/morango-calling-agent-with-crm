@@ -30,6 +30,22 @@ export default function Dashboard() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
+  // Toast notifications state
+  interface ToastItem {
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    id: number;
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { message, type, id }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
   // Settings state (inputs)
   const [dbUrl, setDbUrl] = useState('');
   const [dbAnonKey, setDbAnonKey] = useState('');
@@ -213,9 +229,13 @@ export default function Dashboard() {
       if (success) {
         setLeads((prev) => prev.filter((l) => l.id !== leadId));
         setSelectedLead(null);
+        showToast('Lead deleted successfully!', 'success');
+      } else {
+        showToast('Failed to delete lead.', 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast('Failed to delete lead due to an error.', 'error');
     }
   };
 
@@ -771,6 +791,65 @@ export default function Dashboard() {
         />
       )}
 
+      {/* Toast Notifier Portal */}
+      <div style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        pointerEvents: 'none'
+      }}>
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            style={{
+              pointerEvents: 'auto',
+              minWidth: '280px',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              color: '#FFF',
+              backgroundColor: toast.type === 'success'
+                ? '#16A34A'
+                : toast.type === 'error'
+                ? '#DC2626'
+                : toast.type === 'warning'
+                ? '#D97706'
+                : '#2563EB',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              animation: 'slideInRight 0.3s ease-out forwards'
+            }}
+          >
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                opacity: 0.7,
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
 
     </div>
   );

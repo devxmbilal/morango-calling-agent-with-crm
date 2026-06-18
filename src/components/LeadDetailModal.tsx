@@ -61,6 +61,7 @@ export default function LeadDetailModal({
   const [editedService, setEditedService] = useState(lead.service);
   const [editedBudget, setEditedBudget] = useState(lead.budget || '');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleSaveDetails = async () => {
     if (!onUpdateLead) return;
@@ -216,10 +217,8 @@ export default function LeadDetailModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (onDeleteLead && confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
-      await onDeleteLead(lead.id);
-    }
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
   };
 
   const parseTranscript = (text?: string) => {
@@ -1111,6 +1110,93 @@ export default function LeadDetailModal({
           </div>
         ))}
       </div>
+
+      {/* Custom Delete Confirmation Overlay */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(22, 25, 29, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '360px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            textAlign: 'center',
+            border: '1px solid #ECEDEF'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#FDEBE9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <Trash size={22} color="#E8483D" />
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Delete Lead</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#5A616E', lineHeight: 1.5, fontWeight: 500 }}>
+              Are you sure you want to delete <strong>{lead.name}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  borderRadius: '10px',
+                  border: '1px solid #EBECEF',
+                  background: '#FFFFFF',
+                  color: '#5A616E',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowDeleteConfirm(false);
+                  if (onDeleteLead) {
+                    await onDeleteLead(lead.id);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#E8483D',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
