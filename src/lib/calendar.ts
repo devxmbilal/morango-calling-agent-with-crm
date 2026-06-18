@@ -165,7 +165,7 @@ export async function createCalendarEvent(args: {
   meetingDate: string;
 }): Promise<{ meetingLink: string; startTime: string; eventId: string }> {
   // Load dynamic meeting link fallback (from database settings or local config)
-  let fallbackMeetingLink = 'https://calendly.com/morangoai';
+  let fallbackMeetingLink = '';
   try {
     if (isSupabaseConfigured) {
       const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
@@ -192,6 +192,9 @@ export async function createCalendarEvent(args: {
 
   if (!calendar) {
     console.log('Google Calendar is not configured or in Demo Mode. Returning fallback meeting link:', fallbackMeetingLink);
+    if (!fallbackMeetingLink || fallbackMeetingLink.trim() === '' || fallbackMeetingLink === 'https://calendly.com/morangoai' || fallbackMeetingLink === 'https://calendly.com/mornagoai') {
+      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+    }
     return {
       meetingLink: fallbackMeetingLink,
       startTime: eventDate.toISOString(),
@@ -287,6 +290,10 @@ export async function createCalendarEvent(args: {
 
   const event = attemptResponse.data;
   const meetingLink = event.hangoutLink || fallbackMeetingLink;
+
+  if (!meetingLink || meetingLink.trim() === '' || meetingLink === 'https://calendly.com/morangoai' || meetingLink === 'https://calendly.com/mornagoai') {
+    throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+  }
 
   return {
     meetingLink,

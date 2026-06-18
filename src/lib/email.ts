@@ -128,6 +128,28 @@ export async function sendConfirmationEmail(args: {
       console.error('Error formatting meeting date for email:', e);
     }
 
+    let activeMeetingLink = args.meetingLink;
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      try {
+        if (isSupabaseConfigured) {
+          const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
+          if (data && data.value) {
+            activeMeetingLink = data.value;
+          }
+        } else {
+          const mockSettings = readMockSettings();
+          if (mockSettings['meeting_link']) {
+            activeMeetingLink = mockSettings['meeting_link'];
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching fallback link for confirmation email:', err);
+      }
+    }
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+    }
+
     const mailOptions = {
       from: `"MorangoAI Sales Team" <${smtp.from}>`,
       to: args.to,
@@ -149,7 +171,7 @@ export async function sendConfirmationEmail(args: {
           <div style="background-color: #FAFBFC; border: 1px solid #F1F2F4; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
             <p style="margin: 0; font-size: 13.5px; color: #9AA1AD; font-weight: 600; text-transform: uppercase;">Google Meet Link</p>
             <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700;">
-              <a href="${args.meetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Join Google Meet Consultation</a>
+              <a href="${activeMeetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Join Google Meet Consultation</a>
             </p>
           </div>
           
@@ -291,6 +313,28 @@ export async function sendMeetingReminderEmail(args: {
       }
     } catch (e) {}
 
+    let activeMeetingLink = args.meetingLink;
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      try {
+        if (isSupabaseConfigured) {
+          const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
+          if (data && data.value) {
+            activeMeetingLink = data.value;
+          }
+        } else {
+          const mockSettings = readMockSettings();
+          if (mockSettings['meeting_link']) {
+            activeMeetingLink = mockSettings['meeting_link'];
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching fallback link for reminder email:', err);
+      }
+    }
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+    }
+
     const mailOptions = {
       from: `"MorangoAI Sales Team" <${smtp.from}>`,
       to: args.to,
@@ -312,7 +356,7 @@ export async function sendMeetingReminderEmail(args: {
           <div style="background-color: #FAFBFC; border: 1px solid #F1F2F4; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
             <p style="margin: 0; font-size: 13.5px; color: #9AA1AD; font-weight: 600; text-transform: uppercase;">Google Meet Link</p>
             <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700;">
-              <a href="${args.meetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Click Here to Join Meeting</a>
+              <a href="${activeMeetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Click Here to Join Meeting</a>
             </p>
           </div>
           

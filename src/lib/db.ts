@@ -116,6 +116,22 @@ export const dbService = {
     return !error;
   },
 
+  async updateLead(id: string, updatedFields: Partial<Lead>): Promise<boolean> {
+    if (this.isDemoMode) {
+      const leads = getLocalData();
+      const updated = leads.map((l) => (l.id === id ? { ...l, ...updatedFields } : l));
+      setLocalData(updated);
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('leads')
+      .update(updatedFields)
+      .eq('id', id);
+
+    return !error;
+  },
+
   async createLead(leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>): Promise<Lead> {
     if (this.isDemoMode) {
       const leads = getLocalData();
@@ -221,13 +237,33 @@ export const dbService = {
   },
 
   async addMeeting(leadId: string, meetingDate: string, meetingLink?: string): Promise<Meeting> {
+    let activeLink = meetingLink;
+
     if (this.isDemoMode) {
       const leads = getLocalData();
+      if (!activeLink) {
+        try {
+          const res = await fetch('/api/settings');
+          if (res.ok) {
+            const config = await res.json();
+            if (config.meeting_link && config.meeting_link !== 'https://calendly.com/morangoai' && config.meeting_link !== 'https://calendly.com/mornagoai') {
+              activeLink = config.meeting_link;
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching settings in addMeeting:', e);
+        }
+      }
+
+      if (!activeLink || activeLink.trim() === '' || activeLink === 'https://calendly.com/morangoai' || activeLink === 'https://calendly.com/mornagoai') {
+        throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+      }
+
       const newMeeting: Meeting = {
         id: `meet-${Math.random().toString(36).substr(2, 9)}`,
         lead_id: leadId,
         meeting_date: meetingDate,
-        meeting_link: meetingLink || 'https://meet.google.com/mock-link',
+        meeting_link: activeLink,
         status: 'Scheduled',
         created_at: new Date().toISOString(),
       };
@@ -244,13 +280,29 @@ export const dbService = {
       return newMeeting;
     }
 
+    // Supabase mode - fetch fallback link from settings if none provided
+    if (!activeLink) {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
+        if (data && data.value && data.value !== 'https://calendly.com/morangoai' && data.value !== 'https://calendly.com/mornagoai') {
+          activeLink = data.value;
+        }
+      } catch (e) {
+        console.error('Error fetching fallback link for manual meeting:', e);
+      }
+    }
+
+    if (!activeLink || activeLink.trim() === '' || activeLink === 'https://calendly.com/morangoai' || activeLink === 'https://calendly.com/mornagoai') {
+      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+    }
+
     const { data, error } = await supabase
       .from('meetings')
       .insert([
         {
           lead_id: leadId,
           meeting_date: meetingDate,
-          meeting_link: meetingLink,
+          meeting_link: activeLink,
           status: 'Scheduled',
         },
       ])

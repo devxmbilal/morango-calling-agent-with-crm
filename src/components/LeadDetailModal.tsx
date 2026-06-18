@@ -13,6 +13,7 @@ interface LeadDetailModalProps {
   onDeleteNote?: (noteId: string) => Promise<void>;
   onAddMeeting: (date: string, link?: string) => Promise<void>;
   onDeleteLead?: (id: string) => Promise<void>;
+  onUpdateLead?: (updatedFields: Partial<Lead>) => Promise<void>;
 }
 
 export default function LeadDetailModal({
@@ -23,7 +24,8 @@ export default function LeadDetailModal({
   onUpdateNote,
   onDeleteNote,
   onAddMeeting,
-  onDeleteLead
+  onDeleteLead,
+  onUpdateLead
 }: LeadDetailModalProps) {
   const [activeTab, setActiveTab] = useState<'transcript' | 'notes' | 'meetings'>('transcript');
   const [newNote, setNewNote] = useState('');
@@ -33,6 +35,59 @@ export default function LeadDetailModal({
   const [isSubmittingMeeting, setIsSubmittingMeeting] = useState(false);
   const [sendEmailOnSchedule, setSendEmailOnSchedule] = useState(true);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+
+  // Toast notifications state
+  interface ToastItem {
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    id: number;
+  }
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { message, type, id }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
+  // Lead fields edit state
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editedName, setEditedName] = useState(lead.name);
+  const [editedPhone, setEditedPhone] = useState(lead.phone);
+  const [editedEmail, setEditedEmail] = useState(lead.email);
+  const [editedCompany, setEditedCompany] = useState(lead.company || '');
+  const [editedService, setEditedService] = useState(lead.service);
+  const [editedBudget, setEditedBudget] = useState(lead.budget || '');
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+  const handleSaveDetails = async () => {
+    if (!onUpdateLead) return;
+    if (!editedName.trim() || !editedPhone.trim() || !editedEmail.trim()) {
+      showToast('Name, Phone, and Email are required.', 'error');
+      return;
+    }
+
+    setIsSavingDetails(true);
+    try {
+      await onUpdateLead({
+        name: editedName,
+        phone: editedPhone,
+        email: editedEmail,
+        company: editedCompany || undefined,
+        service: editedService as any,
+        budget: editedBudget || undefined
+      });
+      setIsEditingDetails(false);
+      showToast('Lead details updated successfully!', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save details.', 'error');
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
 
   const handleNoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +137,7 @@ export default function LeadDetailModal({
 
   const handleSendMail = async (meet: Meeting | { meeting_date: string; meeting_link?: string }) => {
     if (!lead.email) {
-      alert('This lead has no email address configured.');
+      showToast('This lead has no email address configured.', 'error');
       return;
     }
     const meetId = ('id' in meet) ? meet.id : 'temp-schedule';
@@ -100,14 +155,14 @@ export default function LeadDetailModal({
         }),
       });
       if (response.ok) {
-        alert('Confirmation email sent successfully!');
+        showToast('Confirmation email sent successfully!', 'success');
       } else {
         const data = await response.json();
-        alert(`Failed to send email: ${data.error || 'Unknown error'}`);
+        showToast(`Failed to send email: ${data.error || 'Unknown error'}`, 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to send email due to network error.');
+      showToast('Failed to send email due to network error.', 'error');
     } finally {
       setSendingEmailId(null);
     }
@@ -122,7 +177,7 @@ export default function LeadDetailModal({
       
       if (sendEmailOnSchedule) {
         if (!lead.email) {
-          alert('Meeting scheduled, but could not send email: Lead has no email address configured.');
+          showToast('Meeting scheduled, but could not send email: Lead has no email address configured.', 'warning');
         } else {
           try {
             const response = await fetch('/api/email', {
@@ -138,21 +193,24 @@ export default function LeadDetailModal({
             });
             if (!response.ok) {
               const data = await response.json();
-              alert(`Meeting scheduled, but email failed: ${data.error || 'Unknown error'}`);
+              showToast(`Meeting scheduled, but email failed: ${data.error || 'Unknown error'}`, 'error');
             } else {
-              alert('Meeting scheduled and confirmation email sent successfully!');
+              showToast('Meeting scheduled and confirmation email sent successfully!', 'success');
             }
           } catch (err) {
             console.error('Failed to send confirmation email:', err);
-            alert('Meeting scheduled, but failed to send confirmation email.');
+            showToast('Meeting scheduled, but failed to send confirmation email.', 'error');
           }
         }
+      } else {
+        showToast('Meeting scheduled successfully!', 'success');
       }
 
       setMeetingDate('');
       setMeetingLink('');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showToast(err.message || 'Failed to schedule meeting.', 'error');
     } finally {
       setIsSubmittingMeeting(false);
     }
@@ -227,7 +285,24 @@ export default function LeadDetailModal({
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16191D', letterSpacing: '-0.3px' }}>{lead.name}</h2>
+              {isEditingDetails ? (
+                <input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  style={{
+                    fontSize: '1.3rem',
+                    fontWeight: 800,
+                    color: '#16191D',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #EBECEF',
+                    width: '240px'
+                  }}
+                />
+              ) : (
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16191D', letterSpacing: '-0.3px' }}>{lead.name}</h2>
+              )}
               <select
                 value={lead.status}
                 onChange={(e) => onStatusChange(e.target.value as Lead['status'])}
@@ -251,26 +326,88 @@ export default function LeadDetailModal({
                 <option value="Lost">Lost</option>
               </select>
             </div>
-            <p style={{ color: '#5A616E', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {lead.company ? (
-                <>
-                  <Briefcase size={14} color="#9AA1AD" /> {lead.company}
-                </>
-              ) : (
-                'No Company Specified'
-              )}
-            </p>
+            {isEditingDetails ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <Briefcase size={14} color="#9AA1AD" />
+                <input
+                  type="text"
+                  placeholder="Company Name"
+                  value={editedCompany}
+                  onChange={(e) => setEditedCompany(e.target.value)}
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #EBECEF',
+                    width: '180px',
+                    color: '#16191D',
+                    fontWeight: 500
+                  }}
+                />
+              </div>
+            ) : (
+              <p style={{ color: '#5A616E', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {lead.company ? (
+                  <>
+                    <Briefcase size={14} color="#9AA1AD" /> {lead.company}
+                  </>
+                ) : (
+                  'No Company Specified'
+                )}
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {onDeleteLead && (
-              <button 
-                onClick={handleDelete}
-                className="btn btn-danger"
-                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-              >
-                Delete Lead
-              </button>
+            {isEditingDetails ? (
+              <>
+                <button
+                  onClick={handleSaveDetails}
+                  className="btn btn-primary"
+                  style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#16A34A', borderColor: '#16A34A' }}
+                  disabled={isSavingDetails}
+                >
+                  {isSavingDetails ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditingDetails(false);
+                    // Reset to current lead values
+                    setEditedName(lead.name);
+                    setEditedPhone(lead.phone);
+                    setEditedEmail(lead.email);
+                    setEditedCompany(lead.company || '');
+                    setEditedService(lead.service);
+                    setEditedBudget(lead.budget || '');
+                  }}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#FAFBFC', borderColor: '#EBECEF', color: '#5A616E' }}
+                  disabled={isSavingDetails}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                {onUpdateLead && (
+                  <button
+                    onClick={() => setIsEditingDetails(true)}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#FAFBFC', borderColor: '#EBECEF', color: '#5A616E', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Edit size={12} /> Edit Details
+                  </button>
+                )}
+                {onDeleteLead && (
+                  <button 
+                    onClick={handleDelete}
+                    className="btn btn-danger"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                  >
+                    Delete Lead
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={onClose}
@@ -319,11 +456,28 @@ export default function LeadDetailModal({
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FFFFFF', border: '1px solid #EBECEF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Phone size={14} color="#5A616E" />
                 </div>
-                <div>
+                <div style={{ flexGrow: 1 }}>
                   <p style={{ fontSize: '0.72rem', color: '#5A616E', fontWeight: 700, marginBottom: '2px' }}>Phone</p>
-                  <a href={`tel:${lead.phone}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                    {lead.phone || 'N/A'}
-                  </a>
+                  {isEditingDetails ? (
+                    <input
+                      type="text"
+                      value={editedPhone}
+                      onChange={(e) => setEditedPhone(e.target.value)}
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #EBECEF',
+                        width: '100%',
+                        color: '#16191D',
+                        fontWeight: 600
+                      }}
+                    />
+                  ) : (
+                    <a href={`tel:${lead.phone}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      {lead.phone || 'N/A'}
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -331,11 +485,28 @@ export default function LeadDetailModal({
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FFFFFF', border: '1px solid #EBECEF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Mail size={14} color="#5A616E" />
                 </div>
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, flexGrow: 1 }}>
                   <p style={{ fontSize: '0.72rem', color: '#5A616E', fontWeight: 700, marginBottom: '2px' }}>Email</p>
-                  <a href={`mailto:${lead.email}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', wordBreak: 'break-all', display: 'block', maxWidth: '210px' }}>
-                    {lead.email || 'N/A'}
-                  </a>
+                  {isEditingDetails ? (
+                    <input
+                      type="email"
+                      value={editedEmail}
+                      onChange={(e) => setEditedEmail(e.target.value)}
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #EBECEF',
+                        width: '100%',
+                        color: '#16191D',
+                        fontWeight: 600
+                      }}
+                    />
+                  ) : (
+                    <a href={`mailto:${lead.email}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', wordBreak: 'break-all', display: 'block', maxWidth: '210px' }}>
+                      {lead.email || 'N/A'}
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -343,9 +514,32 @@ export default function LeadDetailModal({
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FFFFFF', border: '1px solid #EBECEF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Tag size={14} color="#5A616E" />
                 </div>
-                <div>
+                <div style={{ flexGrow: 1 }}>
                   <p style={{ fontSize: '0.72rem', color: '#5A616E', fontWeight: 700, marginBottom: '2px' }}>Required Service</p>
-                  <p style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700 }}>{lead.service}</p>
+                  {isEditingDetails ? (
+                    <select
+                      value={editedService}
+                      onChange={(e) => setEditedService(e.target.value as any)}
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #EBECEF',
+                        width: '100%',
+                        color: '#16191D',
+                        fontWeight: 600,
+                        backgroundColor: '#FFF'
+                      }}
+                    >
+                      <option value="AI Agent">AI Agent</option>
+                      <option value="Web Development">Web Development</option>
+                      <option value="App Development">App Development</option>
+                      <option value="DevOps">DevOps</option>
+                      <option value="AI Automation">AI Automation</option>
+                    </select>
+                  ) : (
+                    <p style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700 }}>{lead.service}</p>
+                  )}
                 </div>
               </div>
 
@@ -353,9 +547,26 @@ export default function LeadDetailModal({
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FFFFFF', border: '1px solid #EBECEF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <DollarSign size={14} color="#16A34A" />
                 </div>
-                <div>
+                <div style={{ flexGrow: 1 }}>
                   <p style={{ fontSize: '0.72rem', color: '#5A616E', fontWeight: 700, marginBottom: '2px' }}>Estimated Budget</p>
-                  <p style={{ fontSize: '0.85rem', color: '#16A34A', fontWeight: 800 }}>{lead.budget || 'Not Specified'}</p>
+                  {isEditingDetails ? (
+                    <input
+                      type="text"
+                      value={editedBudget}
+                      onChange={(e) => setEditedBudget(e.target.value)}
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #EBECEF',
+                        width: '100%',
+                        color: '#16191D',
+                        fontWeight: 600
+                      }}
+                    />
+                  ) : (
+                    <p style={{ fontSize: '0.85rem', color: '#16A34A', fontWeight: 800 }}>{lead.budget || 'Not Specified'}</p>
+                  )}
                 </div>
               </div>
 
@@ -824,6 +1035,81 @@ export default function LeadDetailModal({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Toast container */}
+      <div style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '24px',
+        zIndex: 1100,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        pointerEvents: 'none'
+      }}>
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            style={{
+              pointerEvents: 'auto',
+              minWidth: '320px',
+              padding: '16px 20px',
+              borderRadius: '12px',
+              background: toast.type === 'success' 
+                ? '#ECFDF5' 
+                : toast.type === 'error' 
+                ? '#FEF2F2' 
+                : toast.type === 'warning'
+                ? '#FFFBEB'
+                : '#EFF6FF',
+              border: `1px solid ${
+                toast.type === 'success' 
+                  ? '#10B981' 
+                  : toast.type === 'error' 
+                  ? '#EF4444' 
+                  : toast.type === 'warning'
+                  ? '#F59E0B'
+                  : '#3B82F6'
+              }`,
+              color: toast.type === 'success' 
+                ? '#065F46' 
+                : toast.type === 'error' 
+                ? '#991B1B' 
+                : toast.type === 'warning'
+                ? '#78350F'
+                : '#1E40AF',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              animation: 'slideInRight 0.3s ease-out forwards'
+            }}
+          >
+            <span>{toast.message}</span>
+            <button
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'inherit',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                opacity: 0.7,
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

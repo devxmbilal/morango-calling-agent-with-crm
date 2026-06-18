@@ -219,6 +219,31 @@ export default function Dashboard() {
     }
   };
 
+  // Update Lead Details
+  const handleUpdateLead = async (leadId: string, updatedFields: Partial<Lead>) => {
+    // Optimistic update
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id === leadId ? { ...lead, ...updatedFields } : lead
+      )
+    );
+
+    // Update selected lead state if it is currently open
+    if (selectedLead && selectedLead.id === leadId) {
+      setSelectedLead((prev) => prev ? { ...prev, ...updatedFields } : null);
+    }
+
+    try {
+      const success = await dbService.updateLead(leadId, updatedFields);
+      if (!success) {
+        fetchLeads();
+      }
+    } catch (err) {
+      console.error(err);
+      fetchLeads();
+    }
+  };
+
   // Create Lead Manually
   const handleCreateLead = async (
     leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>,
@@ -733,6 +758,7 @@ export default function Dashboard() {
           onDeleteNote={handleDeleteNote}
           onAddMeeting={handleAddMeeting}
           onDeleteLead={handleDeleteLead}
+          onUpdateLead={(fields) => handleUpdateLead(selectedLead.id, fields)}
         />
       )}
 
