@@ -138,33 +138,6 @@ export default function EmailView({ leads }: EmailViewProps) {
           </div>
         </div>
 
-        {/* n8n Status Node card */}
-        <div style={{ background: '#0F1115', borderRadius: '16px', padding: '18px', color: '#fff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <span style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#16A34A',
-              boxShadow: '0 0 0 3px rgba(22,163,74,0.25)'
-            }}></span>
-            <span style={{ fontSize: '13px', fontWeight: 700 }}>n8n workflow</span>
-            <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#16A34A', fontWeight: 700 }}>Active</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', fontSize: '11.5px', color: '#A8AEB8' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ color: '#E8483D' }}>&bull;</span> Call ended &rarr; webhook</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '6px', color: '#6B7280' }}>&darr;</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ color: '#E8483D' }}>&bull;</span> Extract lead data &rarr; CRM</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '6px', color: '#6B7280' }}>&darr;</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ color: '#E8483D' }}>&bull;</span> Send follow-up email</div>
-          </div>
-
-          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #23262D', fontSize: '11px', color: '#6B7280', fontWeight: 500 }}>
-            Last run &middot; 2 min ago &middot; 0 errors
-          </div>
-        </div>
-
       </div>
     </div>
   );
