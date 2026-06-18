@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lead, Meeting } from '@/lib/db';
-import { Calendar, Video, Clock, TrendingUp } from 'lucide-react';
+import { Calendar, Video, Clock } from 'lucide-react';
 
 interface MeetingsViewProps {
   leads: Lead[];
@@ -244,15 +244,7 @@ export default function MeetingsView({ leads, onSelectLead }: MeetingsViewProps)
           </div>
         </div>
 
-        <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid #F1F2F4' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <TrendingUp size={15} color="#E8483D" />
-            <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#16191D' }}>Booked by Vapi agent</span>
-          </div>
-          <p style={{ margin: 0, fontSize: '11.5px', color: '#9AA1AD', lineHeight: 1.5, fontWeight: 500 }}>
-            All meetings above were auto-scheduled from live calls and confirmed via n8n email integrations.
-          </p>
-        </div>
+        
       </div>
 
       <style jsx global>{`
