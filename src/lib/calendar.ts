@@ -6,7 +6,9 @@ import path from 'path';
 
 // Extract keys from environment
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
-const PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || '')
+  .replace(/^["']|["']$/g, '') // strip wrapping double/single quotes
+  .replace(/\\n/g, '\n');
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'primary';
 
 const isGoogleCalendarConfigured = 
@@ -112,11 +114,11 @@ export async function checkMeetingConflict(
     while (suggestions.length < 3 && testOffsetMinutes < 1440) { // Limit to 24 hours search
       const potentialDate = new Date(requestedDate.getTime() + testOffsetMinutes * 60 * 1000);
       
-      // Don't suggest slots outside working hours (9 AM to 6 PM client local time, e.g. UTC/Local)
+      // Don't suggest slots outside working hours (8 AM to 9 PM client local time, e.g. UTC/Local)
       const hour = potentialDate.getHours();
-      if (hour < 9 || hour >= 18) {
-        // Skip night hours, move to next day 9 AM
-        potentialDate.setHours(9, 0, 0, 0);
+      if (hour < 8 || hour >= 21) {
+        // Skip night hours, move to next day 8 AM
+        potentialDate.setHours(8, 0, 0, 0);
         if (potentialDate.getTime() <= requestedDate.getTime() + testOffsetMinutes * 60 * 1000) {
           potentialDate.setDate(potentialDate.getDate() + 1);
         }
@@ -197,13 +199,15 @@ export async function createCalendarEvent(args: {
     };
   }
 
+  let attemptResponse;
   try {
-    const response = await calendar.events.insert({
+    // Attempt 1: Full detail event with attendees and conference data
+    attemptResponse = await calendar.events.insert({
       calendarId: CALENDAR_ID,
       conferenceDataVersion: 1,
       requestBody: {
         summary: `MorangoAI Consultation: ${args.name}`,
-        description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist.`,
+        description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
         start: {
           dateTime: eventDate.toISOString(),
           timeZone: 'UTC',
@@ -223,21 +227,70 @@ export async function createCalendarEvent(args: {
         },
       },
     });
-
-    const event = response.data;
-    const meetingLink = event.hangoutLink || fallbackMeetingLink;
-
-    return {
-      meetingLink,
-      startTime: event.start?.dateTime || eventDate.toISOString(),
-      eventId: event.id || ''
-    };
-  } catch (err) {
-    console.error('Failed to create Google Calendar event, falling back to custom link:', err);
-    return {
-      meetingLink: fallbackMeetingLink,
-      startTime: eventDate.toISOString(),
-      eventId: `mock-fallback-event-${Date.now()}`
-    };
+  } catch (err: any) {
+    console.warn(`Attempt 1 failed (DWD or other error): ${err.message}. Retrying without attendees...`);
+    try {
+      // Attempt 2: Without attendees
+      attemptResponse = await calendar.events.insert({
+        calendarId: CALENDAR_ID,
+        conferenceDataVersion: 1,
+        requestBody: {
+          summary: `MorangoAI Consultation: ${args.name}`,
+          description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
+          start: {
+            dateTime: eventDate.toISOString(),
+            timeZone: 'UTC',
+          },
+          end: {
+            dateTime: endEventDate.toISOString(),
+            timeZone: 'UTC',
+          },
+          conferenceData: {
+            createRequest: {
+              requestId: `vapi-meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              conferenceSolutionKey: {
+                type: 'hangoutsMeet',
+              },
+            },
+          },
+        },
+      });
+    } catch (err2: any) {
+      console.warn(`Attempt 2 failed (Invalid conference type or other error): ${err2.message}. Retrying with basic event details...`);
+      try {
+        // Attempt 3: Without attendees and without conference data
+        attemptResponse = await calendar.events.insert({
+          calendarId: CALENDAR_ID,
+          requestBody: {
+            summary: `MorangoAI Consultation: ${args.name}`,
+            description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
+            start: {
+              dateTime: eventDate.toISOString(),
+              timeZone: 'UTC',
+            },
+            end: {
+              dateTime: endEventDate.toISOString(),
+              timeZone: 'UTC',
+          },
+        },
+      });
+      } catch (err3) {
+        console.error('All Google Calendar event creation attempts failed:', err3);
+        return {
+          meetingLink: fallbackMeetingLink,
+          startTime: eventDate.toISOString(),
+          eventId: `mock-fallback-event-${Date.now()}`
+        };
+      }
+    }
   }
+
+  const event = attemptResponse.data;
+  const meetingLink = event.hangoutLink || fallbackMeetingLink;
+
+  return {
+    meetingLink,
+    startTime: event.start?.dateTime || eventDate.toISOString(),
+    eventId: event.id || ''
+  };
 }

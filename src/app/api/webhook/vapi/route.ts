@@ -16,12 +16,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid Vapi payload' }, { status: 400 });
     }
 
+    // Extract call details from payload root or message nested root
+    const call = payload.call || message.call || message.functionCall?.call || null;
+    const callId = call?.id || payload.callId || message.callId || '';
+
     // 1. Handle Function Call / Tool Calls (e.g. create_lead)
     if (message.type === 'tool-calls' || message.type === 'function-call') {
       let toolCallId = '';
       let functionName = '';
       let args: any = {};
-      const call = message.call || message.functionCall?.call;
 
       if (message.type === 'tool-calls' && message.toolCalls && message.toolCalls.length > 0) {
         const toolCall = message.toolCalls[0];
@@ -57,9 +60,26 @@ export async function POST(req: Request) {
           }, { status: 200 });
         }
 
-        // 1. Availability check: check for scheduling conflicts
+        let finalMeetingDate = meeting_date;
         if (meeting_date) {
-          const availability = await checkMeetingConflict(meeting_date);
+          try {
+            const parsedDate = new Date(meeting_date);
+            if (!isNaN(parsedDate.getTime())) {
+              const currentDate = new Date();
+              // If Vapi sent a year that is in the past, adjust the year to the current year
+              if (parsedDate.getFullYear() < currentDate.getFullYear()) {
+                parsedDate.setFullYear(currentDate.getFullYear());
+              }
+              finalMeetingDate = parsedDate.toISOString();
+            }
+          } catch (e) {
+            console.error('Error normalizing meeting date year:', e);
+          }
+        }
+
+        // 1. Availability check: check for scheduling conflicts
+        if (finalMeetingDate) {
+          const availability = await checkMeetingConflict(finalMeetingDate);
           if (availability.conflict) {
             return NextResponse.json({
               results: [{
@@ -78,11 +98,11 @@ export async function POST(req: Request) {
         let leadId = 'demo-lead-id';
         if (isSupabaseConfigured) {
           let existingLead = null;
-          if (call?.id) {
+          if (callId) {
             const { data } = await supabase
               .from('leads')
               .select('*')
-              .eq('vapi_call_id', call.id)
+              .eq('vapi_call_id', callId)
               .maybeSingle();
             existingLead = data;
           }
@@ -104,7 +124,7 @@ export async function POST(req: Request) {
           let finalStatus = 'New Lead';
           if (status && validStatuses.includes(status)) {
             finalStatus = status;
-          } else if (meeting_date) {
+          } else if (finalMeetingDate) {
             finalStatus = 'Qualified';
           }
 
@@ -119,7 +139,7 @@ export async function POST(req: Request) {
                 service: service || existingLead.service,
                 budget: budget || existingLead.budget,
                 status: finalStatus,
-                vapi_call_id: call?.id || existingLead.vapi_call_id
+                vapi_call_id: callId || existingLead.vapi_call_id
               })
               .eq('id', existingLead.id)
               .select()
@@ -140,7 +160,7 @@ export async function POST(req: Request) {
                 budget: budget || null,
                 source: 'Vapi Call',
                 status: finalStatus,
-                vapi_call_id: call?.id || null
+                vapi_call_id: callId || null
               }])
               .select()
               .single();
@@ -212,7 +232,7 @@ export async function POST(req: Request) {
             email,
             service: service || 'AI Agent',
             budget: budget || undefined,
-            meetingDate: meeting_date || undefined
+            meetingDate: finalMeetingDate || undefined
           }
         });
 
@@ -223,13 +243,13 @@ export async function POST(req: Request) {
         const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * 26)]).join('');
         const part3 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
         let meetingLink = `https://meet.google.com/${part1}-${part2}-${part3}`;
-        if (meeting_date) {
+        if (finalMeetingDate) {
           const calendarEvent = await createCalendarEvent({
             name,
             email,
             service: service || 'AI Agent',
             budget: budget || undefined,
-            meetingDate: meeting_date
+            meetingDate: finalMeetingDate
           });
 
           meetingLink = calendarEvent.meetingLink;
@@ -247,7 +267,7 @@ export async function POST(req: Request) {
               await supabase
                 .from('meetings')
                 .update({
-                  meeting_date: new Date(meeting_date).toISOString(),
+                  meeting_date: new Date(finalMeetingDate).toISOString(),
                   meeting_link: meetingLink
                 })
                 .eq('id', existingMeeting.id);
@@ -257,7 +277,7 @@ export async function POST(req: Request) {
                 .from('meetings')
                 .insert([{
                   lead_id: leadId,
-                  meeting_date: new Date(meeting_date).toISOString(),
+                  meeting_date: new Date(finalMeetingDate).toISOString(),
                   meeting_link: meetingLink,
                   status: 'Scheduled'
                 }]);
@@ -271,7 +291,7 @@ export async function POST(req: Request) {
             name,
             service: service || 'AI Agent',
             meetingLink,
-            meetingDate: meeting_date
+            meetingDate: finalMeetingDate
           });
         }
 
@@ -291,15 +311,14 @@ export async function POST(req: Request) {
 
     // 2. Handle End of Call Report (Transcript and Recording)
     if (message.type === 'end-of-call-report') {
-      const { call } = message;
-      const customerPhone = call?.customer?.number;
+      const customerPhone = call?.customer?.number || payload.customer?.number || '';
 
-      // Extract transcript and recordingUrl from all possible locations
-      const transcriptText = message.transcript || call?.transcript || payload.transcript || '';
-      const recordingUrlText = message.recordingUrl || message.recording_url || call?.recordingUrl || call?.recording_url || payload.recordingUrl || payload.recording_url || '';
+      // Extract transcript and recordingUrl from all possible locations, including message.artifact
+      const transcriptText = message.transcript || call?.transcript || payload.transcript || message.artifact?.transcript || payload.artifact?.transcript || '';
+      const recordingUrlText = message.recordingUrl || message.recording_url || call?.recordingUrl || call?.recording_url || payload.recordingUrl || payload.recording_url || message.artifact?.recordingUrl || message.artifact?.recording_url || payload.artifact?.recordingUrl || payload.artifact?.recording_url || '';
 
       console.log('Received end-of-call-report event:', {
-        callId: call?.id,
+        callId: callId,
         phone: customerPhone,
         hasTranscript: !!transcriptText,
         hasRecording: !!recordingUrlText
@@ -310,13 +329,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, mode: 'demo' }, { status: 200 });
       }
 
-      // 1. Match the Lead ID (either by call.id or phone number fallback)
+      // 1. Match the Lead ID (either by callId or phone number fallback)
       let matchedLeadId = null;
-      if (call?.id) {
+      if (callId) {
         const { data } = await supabase
           .from('leads')
           .select('id')
-          .eq('vapi_call_id', call.id)
+          .eq('vapi_call_id', callId)
           .maybeSingle();
         if (data) matchedLeadId = data.id;
       }
