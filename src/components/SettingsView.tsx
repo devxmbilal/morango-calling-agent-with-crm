@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Database, User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, Mail } from 'lucide-react';
+import { User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, Mail } from 'lucide-react';
 
 interface SettingsViewProps {
   isDemoMode: boolean;
@@ -12,17 +12,17 @@ export default function SettingsView({
   isDemoMode,
   onProfileUpdate
 }: SettingsViewProps) {
-  // Tabs: 'profile' | 'database' | 'users' | 'mail'
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'database' | 'users' | 'mail'>('profile');
+  // Tabs: 'profile' | 'users' | 'mail'
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'users' | 'mail'>('profile');
 
   // SMTP Config states
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
   const [smtpPort, setSmtpPort] = useState('587');
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
-  const [smtpFrom, setSmtpFrom] = useState('sales@morangoai.com');
+  const [smtpFrom, setSmtpFrom] = useState('no-reply@morangoai.com');
   const [meetingLink, setMeetingLink] = useState('https://calendly.com/morangoai');
-  const [adminEmail, setAdminEmail] = useState('sales@morangoai.com');
+  const [adminEmail, setAdminEmail] = useState('no-reply@morangoai.com');
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState('60');
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
@@ -202,9 +202,9 @@ export default function SettingsView({
         setSmtpPort(data.smtp_port || '587');
         setSmtpUser(data.smtp_user || '');
         setSmtpPass(data.smtp_pass || '');
-        setSmtpFrom(data.smtp_from || 'sales@morangoai.com');
+        setSmtpFrom(data.smtp_from || 'no-reply@morangoai.com');
         setMeetingLink(data.meeting_link || 'https://calendly.com/morangoai');
-        setAdminEmail(data.admin_email || 'sales@morangoai.com');
+        setAdminEmail(data.admin_email || 'no-reply@morangoai.com');
         setRemindersEnabled(data.reminders_enabled !== 'false');
         setReminderTime(data.reminder_time || '60');
       }
@@ -397,26 +397,7 @@ export default function SettingsView({
           <User size={15} color={activeSubTab === 'profile' ? '#E8483D' : '#9AA1AD'} />
           My Profile
         </button>
-        <button
-          onClick={() => setActiveSubTab('database')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '10px 12px',
-            borderRadius: '8px',
-            border: 'none',
-            background: activeSubTab === 'database' ? '#FDEBE9' : 'transparent',
-            color: activeSubTab === 'database' ? '#E8483D' : '#5A616E',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            textAlign: 'left'
-          }}
-        >
-          <Database size={15} color={activeSubTab === 'database' ? '#E8483D' : '#9AA1AD'} />
-          Database Config
-        </button>
+
         <button
           onClick={() => setActiveSubTab('users')}
           style={{
@@ -541,42 +522,7 @@ export default function SettingsView({
           </div>
         )}
 
-        {/* SUBTAB 2: DATABASE CONFIG */}
-        {activeSubTab === 'database' && (
-          <div style={{ maxWidth: '640px' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Database Connection</h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
-              The database connection is managed securely on the server via Prisma ORM.
-            </p>
 
-            <div style={{
-              padding: '16px 18px',
-              borderRadius: '12px',
-              border: '1px solid #ECEDEF',
-              background: isDemoMode ? '#FFFBEB' : '#F0FDF4',
-              marginBottom: '16px',
-            }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#16191D', marginBottom: '6px' }}>
-                Status: {isDemoMode ? 'Demo mode (local browser storage)' : 'Connected to PostgreSQL'}
-              </div>
-              <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.5 }}>
-                {isDemoMode
-                  ? 'Set DATABASE_URL in your server environment, then restart the app.'
-                  : 'Production database access is handled securely through authenticated API routes.'}
-              </div>
-            </div>
-
-            <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.6 }}>
-              <strong>Required server variables:</strong>
-              <ul style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
-                <li>DATABASE_URL</li>
-                <li>JWT_SECRET</li>
-                <li>VAPI_WEBHOOK_SECRET</li>
-                <li>CRON_SECRET</li>
-              </ul>
-            </div>
-          </div>
-        )}
 
         {/* SUBTAB 3: USER ACCOUNTS */}
         {activeSubTab === 'users' && (

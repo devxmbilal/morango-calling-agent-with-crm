@@ -17,7 +17,7 @@ export async function runReminderChecks() {
     const settings = await dbServer.getAllSettings();
     const remindersEnabled = settings.reminders_enabled !== 'false';
     const reminderTimeMins = parseInt(settings.reminder_time || '60', 10);
-    const adminEmail = settings.admin_email || 'sales@morangoai.com';
+    const adminEmail = settings.admin_email || 'no-reply@morangoai.com';
 
     if (!remindersEnabled) return;
 

@@ -39,9 +39,9 @@ export async function GET(req: Request) {
     smtp_port: '587',
     smtp_user: '',
     smtp_pass: '',
-    smtp_from: 'sales@morangoai.com',
+    smtp_from: 'no-reply@morangoai.com',
     meeting_link: 'https://calendly.com/morangoai',
-    admin_email: 'sales@morangoai.com',
+    admin_email: 'no-reply@morangoai.com',
     reminders_enabled: 'true',
     reminder_time: '60',
   };
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       smtp_pass: finalPassword,
       smtp_from: smtp_from.trim(),
       meeting_link: (meeting_link || 'https://calendly.com/morangoai').trim(),
-      admin_email: (admin_email || 'sales@morangoai.com').trim(),
+      admin_email: (admin_email || 'no-reply@morangoai.com').trim(),
       reminders_enabled: reminders_enabled === 'false' ? 'false' : 'true',
       reminder_time: (reminder_time || '60').toString().trim(),
     };

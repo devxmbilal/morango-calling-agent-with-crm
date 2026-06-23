@@ -30,7 +30,7 @@ async function getSmtpTransporter(): Promise<{ transporter: nodemailer.Transport
     let port = 587;
     let user = '';
     let pass = '';
-    let from = 'sales@morangoai.com';
+    let from = 'no-reply@morangoai.com';
 
     // 1. Fetch credentials dynamically
     if (isServerDbConfigured) {
@@ -39,14 +39,14 @@ async function getSmtpTransporter(): Promise<{ transporter: nodemailer.Transport
       port = parseInt(settingsMap['smtp_port'] || '587');
       user = settingsMap['smtp_user'] || '';
       pass = settingsMap['smtp_pass'] || '';
-      from = settingsMap['smtp_from'] || 'sales@morangoai.com';
+      from = settingsMap['smtp_from'] || 'no-reply@morangoai.com';
     } else {
       const settingsMap = readMockSettings();
       host = settingsMap['smtp_host'] || '';
       port = parseInt(settingsMap['smtp_port'] || '587');
       user = settingsMap['smtp_user'] || '';
       pass = settingsMap['smtp_pass'] || '';
-      from = settingsMap['smtp_from'] || 'sales@morangoai.com';
+      from = settingsMap['smtp_from'] || 'no-reply@morangoai.com';
     }
 
     // Fallbacks to environment variables if no dynamic SMTP is configured
@@ -55,7 +55,7 @@ async function getSmtpTransporter(): Promise<{ transporter: nodemailer.Transport
       port = parseInt(process.env.SMTP_PORT || '587');
       user = process.env.SMTP_USER || '';
       pass = process.env.SMTP_PASS || '';
-      from = process.env.SMTP_FROM || 'sales@morangoai.com';
+      from = process.env.SMTP_FROM || 'no-reply@morangoai.com';
     }
 
     if (!host) {

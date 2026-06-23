@@ -184,7 +184,7 @@ export async function POST(req: Request) {
         const adminSetting = isServerDbConfigured
           ? await prisma.systemSetting.findUnique({ where: { key: 'admin_email' } })
           : null;
-        const adminNotificationEmail = adminSetting?.value || 'sales@morangoai.com';
+        const adminNotificationEmail = adminSetting?.value || 'no-reply@morangoai.com';
 
         await sendAdminNotificationEmail({
           to: adminNotificationEmail,
