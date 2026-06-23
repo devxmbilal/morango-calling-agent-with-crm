@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     const leads = await prisma.lead.findMany({
       orderBy: { created_at: 'desc' },
     });
-    const mapped = leads.map(l => ({
+    const mapped = leads.map((l: any) => ({
       ...l,
       created_at: l.created_at.toISOString(),
     }));

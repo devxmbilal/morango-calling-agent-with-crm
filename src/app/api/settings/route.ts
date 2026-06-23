@@ -50,7 +50,7 @@ export async function GET(req: Request) {
     if (isServerDbConfigured) {
       const data = await prisma.systemSetting.findMany();
       if (data) {
-        data.forEach(row => {
+        data.forEach((row: any) => {
           config[row.key] = row.value;
         });
       }

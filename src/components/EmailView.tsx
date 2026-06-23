@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
 import { Lead } from '@/lib/db';
 
@@ -9,25 +9,50 @@ interface EmailViewProps {
 }
 
 export default function EmailView({ leads }: EmailViewProps) {
+  const [smtpConfigured, setSmtpConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkSmtp = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const config = await res.json();
+          const hasUser = !!config.smtp_user?.trim();
+          const hasPass = !!config.smtp_pass?.trim();
+          setSmtpConfigured(hasUser && hasPass);
+        } else {
+          setSmtpConfigured(false);
+        }
+      } catch (err) {
+        console.error(err);
+        setSmtpConfigured(false);
+      }
+    };
+    checkSmtp();
+  }, []);
   
   // Derive emails dynamically from leads
   const emails = (leads || []).map((lead, idx) => {
-    let status = 'Delivered';
-    let color = '#2563EB';
-    let bg = '#DBEAFE';
+    const isSmtpActive = smtpConfigured !== false;
     
-    if (lead.status === 'Won' || lead.status === 'Qualified') {
-      status = 'Opened';
-      color = '#16A34A';
-      bg = '#DCFCE7';
-    } else if (lead.status === 'Lost') {
-      status = 'Sent';
-      color = '#64748B';
-      bg = '#F1F5F9';
-    } else if (idx % 2 === 0) {
-      status = 'Opened';
-      color = '#16A34A';
-      bg = '#DCFCE7';
+    let status = isSmtpActive ? 'Delivered' : 'Not Sent';
+    let color = isSmtpActive ? '#2563EB' : '#DC2626';
+    let bg = isSmtpActive ? '#DBEAFE' : '#FEF2F2';
+    
+    if (isSmtpActive) {
+      if (lead.status === 'Won' || lead.status === 'Qualified') {
+        status = 'Sent';
+        color = '#16A34A';
+        bg = '#DCFCE7';
+      } else if (lead.status === 'Lost') {
+        status = 'Sent';
+        color = '#64748B';
+        bg = '#F1F5F9';
+      } else if (idx % 2 === 0) {
+        status = 'Sent';
+        color = '#16A34A';
+        bg = '#DCFCE7';
+      }
     }
 
     return {
@@ -42,14 +67,39 @@ export default function EmailView({ leads }: EmailViewProps) {
     };
   });
 
-  const totalSent = emails.length;
-  const openedCount = emails.filter(e => e.status === 'Opened').length;
-  const openRate = totalSent === 0 ? '0%' : `${Math.round((openedCount / totalSent) * 100)}%`;
-  const replyRate = totalSent === 0 ? '0%' : `${Math.round((openedCount / totalSent) * 33)}%`;
+  const isSmtpActive = smtpConfigured !== false;
+  const totalSent = isSmtpActive ? emails.length : 0;
+  const sentCount = isSmtpActive ? emails.filter(e => e.status === 'Sent').length : 0;
+  const deliveryRate = totalSent === 0 ? '0%' : `${Math.round((sentCount / totalSent) * 100)}%`;
+  const replyRate = totalSent === 0 ? '0%' : `${Math.round((sentCount / totalSent) * 33)}%`;
 
   return (
     <div className="email-layout-grid" style={{ animation: 'fadeUp 0.3s ease', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', alignItems: 'start' }}>
       
+      {/* SMTP Warning banner if not configured */}
+      {smtpConfigured === false && (
+        <div style={{
+          gridColumn: '1 / -1',
+          background: '#FEF2F2',
+          border: '1px solid #FCA5A5',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+        }}>
+          <AlertCircle size={20} color="#DC2626" style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#991B1B' }}>
+              SMTP Mail is not configured!
+            </span>
+            <span style={{ fontSize: '11.5px', color: '#B91C1C', fontWeight: 500 }}>
+              Please configure SMTP server credentials in the settings tab to enable automated email workflows.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* LEFT COLUMN: AUTOMATED EMAILS LOG */}
       <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '15px 20px', borderBottom: '1px solid #F1F2F4' }}>
@@ -87,7 +137,7 @@ export default function EmailView({ leads }: EmailViewProps) {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                background: email.status === 'Opened' ? '#16A34A' : email.status === 'Delivered' ? '#2563EB' : '#9AA1AD',
+                background: email.status === 'Sent' ? '#16A34A' : email.status === 'Delivered' ? '#2563EB' : '#DC2626',
                 flexShrink: 0
               }} />
               
@@ -128,8 +178,8 @@ export default function EmailView({ leads }: EmailViewProps) {
               <span style={{ fontSize: '16px', fontWeight: 800, color: '#16191D' }}>{totalSent}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12.5px', color: '#5A616E', fontWeight: 600 }}>Open rate</span>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#16A34A' }}>{openRate}</span>
+              <span style={{ fontSize: '12.5px', color: '#5A616E', fontWeight: 600 }}>Delivery rate</span>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#16A34A' }}>{deliveryRate}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '12.5px', color: '#5A616E', fontWeight: 600 }}>Reply rate</span>

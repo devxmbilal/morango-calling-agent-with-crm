@@ -18,6 +18,44 @@ import { Database, X, RefreshCw, Menu, Bell } from 'lucide-react';
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>('overview'); // Default Landing Tab
   const [leads, setLeads] = useState<Lead[]>([]);
+
+  // Synchronize activeTab state with URL search parameter
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncTabFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      
+      const validTabs = ['overview', 'leads', 'meetings', 'calls', 'pipeline', 'analytics', 'email', 'settings'];
+      if (tabParam && validTabs.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    };
+
+    // Initial sync
+    syncTabFromUrl();
+
+    // Listen to popstate event (back/forward browser buttons)
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncTabFromUrl);
+    };
+  }, []);
+
+  // Update URL search parameters when activeTab changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const currentTab = params.get('tab');
+    
+    if (currentTab !== activeTab) {
+      params.set('tab', activeTab);
+      // Use pushState to allow browser back/forward navigation
+      window.history.pushState({}, '', `${window.location.pathname}?${params.toString()}`);
+    }
+  }, [activeTab]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);

@@ -303,7 +303,7 @@ export async function POST(req: Request) {
           select: { id: true, phone: true },
         });
 
-        const matched = phoneLeads?.find(l => {
+        const matched = phoneLeads?.find((l: any) => {
           const lClean = (l.phone || '').replace(/[^0-9]/g, '');
           return lClean === cleanPhone || (lastNine && lClean.endsWith(lastNine));
         });
