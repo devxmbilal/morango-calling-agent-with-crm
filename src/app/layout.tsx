@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'MorangoAI CRM - Voice Calling Agent Automation',
   description: 'Scalable CRM Dashboard integrated with Vapi Voice Agent and n8n Workflows.',
+  icons: {
+    icon: '/morango_logo.jpg',
+  },
 };
 
 export default function RootLayout({
