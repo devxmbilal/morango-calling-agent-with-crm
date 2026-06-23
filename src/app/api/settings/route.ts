@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
-import { getSupabaseAdmin, isServerDbConfigured } from '@/lib/supabase-admin';
+import prisma from '@/lib/prisma';
+import { isServerDbConfigured } from '@/lib/db-server';
 import fs from 'fs';
 import path from 'path';
 
@@ -47,8 +48,8 @@ export async function GET(req: Request) {
 
   try {
     if (isServerDbConfigured) {
-      const { data, error } = await getSupabaseAdmin().from('system_settings').select('*');
-      if (!error && data) {
+      const data = await prisma.systemSetting.findMany();
+      if (data) {
         data.forEach(row => {
           config[row.key] = row.value;
         });
@@ -93,11 +94,9 @@ export async function POST(req: Request) {
 
     let existingPass = '';
     if (isServerDbConfigured) {
-      const { data } = await getSupabaseAdmin()
-        .from('system_settings')
-        .select('*')
-        .eq('key', 'smtp_pass')
-        .single();
+      const data = await prisma.systemSetting.findUnique({
+        where: { key: 'smtp_pass' },
+      });
       if (data) existingPass = data.value;
     } else {
       existingPass = readMockSettings()['smtp_pass'] || '';
@@ -118,26 +117,12 @@ export async function POST(req: Request) {
     };
 
     if (isServerDbConfigured) {
-      const supabase = getSupabaseAdmin();
       for (const key of Object.keys(newSettings)) {
-        const { data: existing } = await supabase
-          .from('system_settings')
-          .select('key')
-          .eq('key', key)
-          .maybeSingle();
-
-        if (existing) {
-          const { error } = await supabase
-            .from('system_settings')
-            .update({ value: newSettings[key] })
-            .eq('key', key);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('system_settings')
-            .insert({ key, value: newSettings[key] });
-          if (error) throw error;
-        }
+        await prisma.systemSetting.upsert({
+          where: { key },
+          update: { value: newSettings[key] },
+          create: { key, value: newSettings[key] },
+        });
       }
     } else {
       writeMockSettings(newSettings);

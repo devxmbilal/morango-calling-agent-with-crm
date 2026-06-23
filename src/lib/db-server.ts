@@ -1,98 +1,145 @@
-import { getSupabaseAdmin, isServerDbConfigured } from './supabase-admin';
+import prisma from './prisma';
 import type { Lead, Meeting, Note } from './db';
 
-export { isServerDbConfigured };
+export const isServerDbConfigured = !!process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '';
 
 export const dbServer = {
   isConfigured: isServerDbConfigured,
 
   async getLeads(): Promise<Lead[]> {
-    const supabase = getSupabaseAdmin();
-    const { data: leads, error } = await supabase
-      .from('leads')
-      .select(`
-        *,
-        meetings (*),
-        notes (*)
-      `)
-      .order('created_at', { ascending: false });
+    if (!isServerDbConfigured) {
+      throw new Error('Database is not configured.');
+    }
 
-    if (error) throw error;
+    const leads = await prisma.lead.findMany({
+      include: {
+        meetings: true,
+        notes: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
 
-    return (leads || []).map((lead: any) => ({
+    return leads.map((lead) => ({
       ...lead,
-      meetings: (lead.meetings || []).sort(
-        (a: Meeting, b: Meeting) =>
-          new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime()
-      ),
-      notes: (lead.notes || []).sort(
-        (a: Note, b: Note) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ),
-    })) as Lead[];
+      created_at: lead.created_at.toISOString(),
+      meetings: (lead.meetings || [])
+        .map((m) => ({
+          ...m,
+          created_at: m.created_at.toISOString(),
+          meeting_date: m.meeting_date.toISOString(),
+        }))
+        .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime()),
+      notes: (lead.notes || [])
+        .map((n) => ({
+          ...n,
+          created_at: n.created_at.toISOString(),
+        }))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    })) as any[] as Lead[];
   },
 
   async updateLeadStatus(id: string, status: Lead['status']): Promise<boolean> {
-    const { error } = await getSupabaseAdmin()
-      .from('leads')
-      .update({ status })
-      .eq('id', id);
-    return !error;
+    if (!isServerDbConfigured) return false;
+    try {
+      await prisma.lead.update({
+        where: { id },
+        data: { status },
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma updateLeadStatus error:', err);
+      return false;
+    }
   },
 
   async updateLead(id: string, updatedFields: Partial<Lead>): Promise<boolean> {
+    if (!isServerDbConfigured) return false;
     const { meetings, notes, id: _id, created_at, ...fields } = updatedFields as Lead;
-    const { error } = await getSupabaseAdmin()
-      .from('leads')
-      .update(fields)
-      .eq('id', id);
-    return !error;
+    try {
+      await prisma.lead.update({
+        where: { id },
+        data: fields as any,
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma updateLead error:', err);
+      return false;
+    }
   },
 
   async createLead(
     leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>
   ): Promise<Lead> {
-    const { data, error } = await getSupabaseAdmin()
-      .from('leads')
-      .insert([leadData])
-      .select()
-      .single();
-    if (error) throw error;
-    return { ...data, meetings: [], notes: [] } as Lead;
+    if (!isServerDbConfigured) {
+      throw new Error('Database is not configured.');
+    }
+    const data = await prisma.lead.create({
+      data: leadData as any,
+    });
+    return {
+      ...data,
+      created_at: data.created_at.toISOString(),
+      meetings: [],
+      notes: [],
+    } as any as Lead;
   },
 
   async addNote(leadId: string, noteText: string): Promise<Note> {
-    const { data, error } = await getSupabaseAdmin()
-      .from('notes')
-      .insert([{ lead_id: leadId, note: noteText }])
-      .select()
-      .single();
-    if (error) throw error;
-    return data as Note;
+    if (!isServerDbConfigured) {
+      throw new Error('Database is not configured.');
+    }
+    const data = await prisma.note.create({
+      data: {
+        lead_id: leadId,
+        note: noteText,
+      },
+    });
+    return {
+      ...data,
+      created_at: data.created_at.toISOString(),
+    } as any as Note;
   },
 
   async updateNote(noteId: string, noteText: string): Promise<boolean> {
-    const { error } = await getSupabaseAdmin()
-      .from('notes')
-      .update({ note: noteText })
-      .eq('id', noteId);
-    return !error;
+    if (!isServerDbConfigured) return false;
+    try {
+      await prisma.note.update({
+        where: { id: noteId },
+        data: { note: noteText },
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma updateNote error:', err);
+      return false;
+    }
   },
 
   async deleteNote(noteId: string): Promise<boolean> {
-    const { error } = await getSupabaseAdmin().from('notes').delete().eq('id', noteId);
-    return !error;
+    if (!isServerDbConfigured) return false;
+    try {
+      await prisma.note.delete({
+        where: { id: noteId },
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma deleteNote error:', err);
+      return false;
+    }
   },
 
   async addMeeting(leadId: string, meetingDate: string, meetingLink?: string): Promise<Meeting> {
+    if (!isServerDbConfigured) {
+      throw new Error('Database is not configured.');
+    }
+
     let activeLink = meetingLink;
     if (!activeLink) {
-      const { data } = await getSupabaseAdmin()
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'meeting_link')
-        .single();
-      if (data?.value) activeLink = data.value;
+      const setting = await prisma.systemSetting.findUnique({
+        where: { key: 'meeting_link' },
+      });
+      if (setting?.value) activeLink = setting.value;
     }
 
     if (
@@ -104,41 +151,48 @@ export const dbServer = {
       throw new Error('No meeting link configured. Please set a meeting link in settings first.');
     }
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('meetings')
-      .insert([
-        {
-          lead_id: leadId,
-          meeting_date: meetingDate,
-          meeting_link: activeLink,
-          status: 'Scheduled',
-        },
-      ])
-      .select()
-      .single();
+    const data = await prisma.meeting.create({
+      data: {
+        lead_id: leadId,
+        meeting_date: new Date(meetingDate),
+        meeting_link: activeLink,
+        status: 'Scheduled',
+      },
+    });
 
-    if (error) throw error;
-    return data as Meeting;
+    return {
+      ...data,
+      created_at: data.created_at.toISOString(),
+      meeting_date: data.meeting_date.toISOString(),
+    } as any as Meeting;
   },
 
   async deleteLead(id: string): Promise<boolean> {
-    const { error } = await getSupabaseAdmin().from('leads').delete().eq('id', id);
-    return !error;
+    if (!isServerDbConfigured) return false;
+    try {
+      await prisma.lead.delete({
+        where: { id },
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma deleteLead error:', err);
+      return false;
+    }
   },
 
   async getSetting(key: string): Promise<string | null> {
-    const { data } = await getSupabaseAdmin()
-      .from('system_settings')
-      .select('value')
-      .eq('key', key)
-      .maybeSingle();
-    return data?.value ?? null;
+    if (!isServerDbConfigured) return null;
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key },
+    });
+    return setting?.value ?? null;
   },
 
   async getAllSettings(): Promise<Record<string, string>> {
-    const { data } = await getSupabaseAdmin().from('system_settings').select('*');
+    if (!isServerDbConfigured) return {};
+    const settings = await prisma.systemSetting.findMany();
     const map: Record<string, string> = {};
-    (data || []).forEach((row: { key: string; value: string }) => {
+    settings.forEach((row) => {
       map[row.key] = row.value;
     });
     return map;

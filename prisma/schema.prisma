@@ -1,0 +1,68 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Lead {
+  id            String    @id @default(uuid())
+  name          String
+  phone         String
+  email         String
+  company       String?
+  service       String
+  budget        String?
+  source        String    @default("Vapi Call")
+  status        String    @default("New Lead")
+  vapi_call_id  String?
+  transcript    String?
+  recording_url String?
+  created_at    DateTime  @default(now())
+  meetings      Meeting[]
+  notes         Note[]
+
+  @@map("leads")
+}
+
+model Meeting {
+  id           String   @id @default(uuid())
+  lead_id      String
+  meeting_date DateTime
+  meeting_link String?
+  status       String   @default("Scheduled")
+  created_at   DateTime @default(now())
+  lead         Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  lead_id    String
+  note       String
+  created_at DateTime @default(now())
+  lead       Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  username      String   @unique
+  password_hash String
+  salt          String   @default("bcrypt")
+  name          String?
+  created_at    DateTime @default(now())
+
+  @@map("users")
+}
+
+model SystemSetting {
+  key   String @id
+  value String
+
+  @@map("system_settings")
+}

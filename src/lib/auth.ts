@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
-import { getSupabaseAdmin, isServerDbConfigured } from './supabase-admin';
+import prisma from './prisma';
+import { isServerDbConfigured } from './db-server';
 import { allowDefaultAdminSeed, getDefaultAdminPassword } from './env';
 import fs from 'fs';
 import path from 'path';
@@ -48,10 +49,10 @@ async function verifyPassword(password: string, user: User): Promise<boolean> {
 async function upgradeLegacyPassword(userId: string, password: string): Promise<void> {
   const password_hash = await hashPassword(password);
   if (isServerDbConfigured) {
-    await getSupabaseAdmin()
-      .from('users')
-      .update({ password_hash, salt: 'bcrypt' })
-      .eq('id', userId);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash, salt: 'bcrypt' },
+    });
     return;
   }
 
@@ -91,24 +92,25 @@ export const authService = {
 
     if (isServerDbConfigured) {
       try {
-        const { data: user, error } = await getSupabaseAdmin()
-          .from('users')
-          .select('*')
-          .eq('username', username.trim().toLowerCase())
-          .maybeSingle();
+        const user = await prisma.user.findUnique({
+          where: { username: username.trim().toLowerCase() },
+        });
 
-        if (error || !user) return null;
+        if (!user) return null;
 
-        const valid = await verifyPassword(password, user as User);
+        const valid = await verifyPassword(password, user as any as User);
         if (!valid) return null;
 
         if (!isBcryptHash(user.password_hash)) {
           await upgradeLegacyPassword(user.id, password);
         }
 
-        return user as User;
+        return {
+          ...user,
+          created_at: user.created_at.toISOString(),
+        } as any as User;
       } catch (err) {
-        console.error('Supabase auth error, falling back to mock users:', err);
+        console.error('Prisma auth error, falling back to mock users:', err);
       }
     }
 
@@ -129,15 +131,16 @@ export const authService = {
   async getUserById(id: string): Promise<User | null> {
     if (isServerDbConfigured) {
       try {
-        const { data: user, error } = await getSupabaseAdmin()
-          .from('users')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
-        if (error || !user) return null;
-        return user as User;
+        const user = await prisma.user.findUnique({
+          where: { id },
+        });
+        if (!user) return null;
+        return {
+          ...user,
+          created_at: user.created_at.toISOString(),
+        } as any as User;
       } catch (err) {
-        console.error('Supabase get user by id error:', err);
+        console.error('Prisma get user by id error:', err);
       }
     }
 
@@ -149,19 +152,18 @@ export const authService = {
     const password_hash = await hashPassword(password);
 
     if (isServerDbConfigured) {
-      const { data, error } = await getSupabaseAdmin()
-        .from('users')
-        .insert([{
+      const data = await prisma.user.create({
+        data: {
           username: trimmedUsername,
           password_hash,
           salt: 'bcrypt',
           name: name || null,
-        }])
-        .select()
-        .single();
-
-      if (error) throw new Error(error.message);
-      return data as User;
+        },
+      });
+      return {
+        ...data,
+        created_at: data.created_at.toISOString(),
+      } as any as User;
     }
 
     const users = readMockUsers();
@@ -188,7 +190,7 @@ export const authService = {
     updates: { username?: string; password?: string; name?: string }
   ): Promise<User> {
     if (isServerDbConfigured) {
-      const dbUpdates: Record<string, string | null> = {};
+      const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name || null;
       if (updates.username !== undefined) dbUpdates.username = updates.username.trim().toLowerCase();
       if (updates.password !== undefined && updates.password.trim() !== '') {
@@ -196,15 +198,15 @@ export const authService = {
         dbUpdates.salt = 'bcrypt';
       }
 
-      const { data, error } = await getSupabaseAdmin()
-        .from('users')
-        .update(dbUpdates)
-        .eq('id', id)
-        .select()
-        .single();
+      const data = await prisma.user.update({
+        where: { id },
+        data: dbUpdates,
+      });
 
-      if (error) throw new Error(error.message);
-      return data as User;
+      return {
+        ...data,
+        created_at: data.created_at.toISOString(),
+      } as any as User;
     }
 
     const users = readMockUsers();
@@ -232,8 +234,9 @@ export const authService = {
 
   async deleteUser(id: string): Promise<boolean> {
     if (isServerDbConfigured) {
-      const { error } = await getSupabaseAdmin().from('users').delete().eq('id', id);
-      if (error) throw new Error(error.message);
+      await prisma.user.delete({
+        where: { id },
+      });
       return true;
     }
 
@@ -248,12 +251,23 @@ export const authService = {
     await this.initializeDefaultUser();
 
     if (isServerDbConfigured) {
-      const { data, error } = await getSupabaseAdmin()
-        .from('users')
-        .select('id, username, name, created_at')
-        .order('created_at', { ascending: true });
-
-      if (!error && data) return data;
+      const data = await prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          created_at: true,
+        },
+        orderBy: {
+          created_at: 'asc',
+        },
+      });
+      return data.map((u) => ({
+        id: u.id,
+        username: u.username,
+        name: u.name || undefined,
+        created_at: u.created_at.toISOString(),
+      }));
     }
 
     return readMockUsers().map(({ id, username, name, created_at }) => ({
@@ -272,11 +286,8 @@ export const authService = {
 
     if (isServerDbConfigured) {
       try {
-        const { count, error } = await getSupabaseAdmin()
-          .from('users')
-          .select('*', { count: 'exact', head: true });
-
-        if (error || count !== 0) return;
+        const count = await prisma.user.count();
+        if (count !== 0) return;
 
         console.log('Seeding default database admin user...');
         await this.createUser('admin', defaultPassword, 'Administrator');

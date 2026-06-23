@@ -359,6 +359,9 @@ export default function SettingsView({
         setUserPassword('');
         setUserDisplayName('');
         fetchUsers();
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       }
     } catch (err) {
       console.error(err);
@@ -543,7 +546,7 @@ export default function SettingsView({
           <div style={{ maxWidth: '640px' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Database Connection</h3>
             <p style={{ margin: '0 0 20px 0', fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
-              Supabase is configured on the server via environment variables. The browser never stores database credentials.
+              The database connection is managed securely on the server via Prisma ORM.
             </p>
 
             <div style={{
@@ -554,11 +557,11 @@ export default function SettingsView({
               marginBottom: '16px',
             }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#16191D', marginBottom: '6px' }}>
-                Status: {isDemoMode ? 'Demo mode (local browser storage)' : 'Connected to Supabase'}
+                Status: {isDemoMode ? 'Demo mode (local browser storage)' : 'Connected to PostgreSQL'}
               </div>
               <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.5 }}>
                 {isDemoMode
-                  ? 'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your server environment, then restart the app.'
+                  ? 'Set DATABASE_URL in your server environment, then restart the app.'
                   : 'Production database access is handled securely through authenticated API routes.'}
               </div>
             </div>
@@ -566,9 +569,7 @@ export default function SettingsView({
             <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.6 }}>
               <strong>Required server variables:</strong>
               <ul style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
-                <li>NEXT_PUBLIC_SUPABASE_URL</li>
-                <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-                <li>SUPABASE_SERVICE_ROLE_KEY</li>
+                <li>DATABASE_URL</li>
                 <li>JWT_SECRET</li>
                 <li>VAPI_WEBHOOK_SECRET</li>
                 <li>CRON_SECRET</li>

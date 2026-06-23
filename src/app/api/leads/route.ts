@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyApiKey, requireAuth } from '@/lib/api-auth';
-import { getSupabaseAdmin, isServerDbConfigured } from '@/lib/supabase-admin';
+import prisma from '@/lib/prisma';
+import { isServerDbConfigured } from '@/lib/db-server';
 
 export async function GET(req: Request) {
   const auth = await requireAuth(req);
@@ -10,19 +11,20 @@ export async function GET(req: Request) {
 
   if (!isServerDbConfigured) {
     return NextResponse.json({
-      error: 'Supabase is not configured. Running in demo mode.',
+      error: 'Database is not configured. Running in demo mode.',
       isDemo: true,
     }, { status: 200 });
   }
 
   try {
-    const { data: leads, error } = await getSupabaseAdmin()
-      .from('leads')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return NextResponse.json(leads, { status: 200 });
+    const leads = await prisma.lead.findMany({
+      orderBy: { created_at: 'desc' },
+    });
+    const mapped = leads.map(l => ({
+      ...l,
+      created_at: l.created_at.toISOString(),
+    }));
+    return NextResponse.json(mapped, { status: 200 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -61,9 +63,8 @@ export async function POST(req: Request) {
       }, { status: 200 });
     }
 
-    const { data: lead, error } = await getSupabaseAdmin()
-      .from('leads')
-      .insert([{
+    const lead = await prisma.lead.create({
+      data: {
         name,
         phone,
         email,
@@ -75,12 +76,15 @@ export async function POST(req: Request) {
         vapi_call_id: vapi_call_id || null,
         transcript: transcript || null,
         recording_url: recording_url || null,
-      }])
-      .select()
-      .single();
+      }
+    });
 
-    if (error) throw error;
-    return NextResponse.json({ message: 'Lead created successfully', lead }, { status: 201 });
+    const mapped = {
+      ...lead,
+      created_at: lead.created_at.toISOString(),
+    };
+
+    return NextResponse.json({ message: 'Lead created successfully', lead: mapped }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

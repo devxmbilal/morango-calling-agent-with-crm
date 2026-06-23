@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyWebhookSecret } from '@/lib/api-auth';
-import { getSupabaseAdmin, isServerDbConfigured } from '@/lib/supabase-admin';
+import prisma from '@/lib/prisma';
+import { isServerDbConfigured } from '@/lib/db-server';
 import { checkMeetingConflict, createCalendarEvent } from '@/lib/calendar';
 import { sendConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
 
@@ -94,29 +95,27 @@ export async function POST(req: Request) {
         let meetingLink = '';
 
         if (isServerDbConfigured) {
-          const supabase = getSupabaseAdmin();
           let existingLead = null;
 
           if (callId) {
-            const { data } = await supabase
-              .from('leads')
-              .select('*')
-              .eq('vapi_call_id', callId)
-              .maybeSingle();
-            existingLead = data;
+            existingLead = await prisma.lead.findFirst({
+              where: { vapi_call_id: callId },
+            });
           }
 
           if (!existingLead && phone) {
-            const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-            const { data } = await supabase
-              .from('leads')
-              .select('*')
-              .eq('phone', phone)
-              .gt('created_at', fifteenMinsAgo)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            existingLead = data;
+            const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+            existingLead = await prisma.lead.findFirst({
+              where: {
+                phone,
+                created_at: {
+                  gt: fifteenMinsAgo,
+                },
+              },
+              orderBy: {
+                created_at: 'desc',
+              },
+            });
           }
 
           const validStatuses = ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
@@ -128,9 +127,9 @@ export async function POST(req: Request) {
           }
 
           if (existingLead) {
-            const { data: updatedLead, error: updateError } = await supabase
-              .from('leads')
-              .update({
+            const updatedLead = await prisma.lead.update({
+              where: { id: existingLead.id },
+              data: {
                 name,
                 phone,
                 email,
@@ -139,17 +138,12 @@ export async function POST(req: Request) {
                 budget: budget || existingLead.budget,
                 status: finalStatus,
                 vapi_call_id: callId || existingLead.vapi_call_id,
-              })
-              .eq('id', existingLead.id)
-              .select()
-              .single();
-
-            if (updateError) throw updateError;
-            if (updatedLead) leadId = updatedLead.id;
+              },
+            });
+            leadId = updatedLead.id;
           } else {
-            const { data: lead, error: leadError } = await supabase
-              .from('leads')
-              .insert([{
+            const lead = await prisma.lead.create({
+              data: {
                 name,
                 phone,
                 email,
@@ -159,36 +153,38 @@ export async function POST(req: Request) {
                 source: 'Vapi Call',
                 status: finalStatus,
                 vapi_call_id: callId || null,
-              }])
-              .select()
-              .single();
-
-            if (leadError) throw leadError;
-            if (lead) leadId = lead.id;
+              },
+            });
+            leadId = lead.id;
           }
 
           if (lead_evaluation) {
             const analysisNoteText = `[AI Intent Analysis] ${lead_evaluation}`;
-            const { data: existingNotes } = await supabase
-              .from('notes')
-              .select('id, note')
-              .eq('lead_id', leadId);
+            const existingNotes = await prisma.note.findMany({
+              where: { lead_id: leadId },
+            });
 
             const existingAnalysisNote = existingNotes?.find((n: { note: string }) =>
               n.note.startsWith('[AI Intent Analysis]')
             );
 
             if (existingAnalysisNote) {
-              await supabase.from('notes').update({ note: analysisNoteText }).eq('id', existingAnalysisNote.id);
+              await prisma.note.update({
+                where: { id: existingAnalysisNote.id },
+                data: { note: analysisNoteText },
+              });
             } else {
-              await supabase.from('notes').insert([{ lead_id: leadId, note: analysisNoteText }]);
+              await prisma.note.create({
+                data: { lead_id: leadId, note: analysisNoteText },
+              });
             }
           }
         }
 
-        const adminNotificationEmail =
-          (isServerDbConfigured ? await getSupabaseAdmin().from('system_settings').select('value').eq('key', 'admin_email').single().then(r => r.data?.value) : null)
-          || 'sales@morangoai.com';
+        const adminSetting = isServerDbConfigured
+          ? await prisma.systemSetting.findUnique({ where: { key: 'admin_email' } })
+          : null;
+        const adminNotificationEmail = adminSetting?.value || 'sales@morangoai.com';
 
         await sendAdminNotificationEmail({
           to: adminNotificationEmail,
@@ -214,29 +210,30 @@ export async function POST(req: Request) {
           meetingLink = calendarEvent.meetingLink;
 
           if (isServerDbConfigured) {
-            const supabase = getSupabaseAdmin();
-            const { data: existingMeeting } = await supabase
-              .from('meetings')
-              .select('*')
-              .eq('lead_id', leadId)
-              .eq('status', 'Scheduled')
-              .maybeSingle();
+            const existingMeeting = await prisma.meeting.findFirst({
+              where: {
+                lead_id: leadId,
+                status: 'Scheduled',
+              },
+            });
 
             if (existingMeeting) {
-              await supabase
-                .from('meetings')
-                .update({
-                  meeting_date: new Date(finalMeetingDate).toISOString(),
+              await prisma.meeting.update({
+                where: { id: existingMeeting.id },
+                data: {
+                  meeting_date: new Date(finalMeetingDate),
                   meeting_link: meetingLink,
-                })
-                .eq('id', existingMeeting.id);
+                },
+              });
             } else {
-              await supabase.from('meetings').insert([{
-                lead_id: leadId,
-                meeting_date: new Date(finalMeetingDate).toISOString(),
-                meeting_link: meetingLink,
-                status: 'Scheduled',
-              }]);
+              await prisma.meeting.create({
+                data: {
+                  lead_id: leadId,
+                  meeting_date: new Date(finalMeetingDate),
+                  meeting_link: meetingLink,
+                  status: 'Scheduled',
+                },
+              });
             }
           }
 
@@ -289,18 +286,22 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, mode: 'demo' }, { status: 200 });
       }
 
-      const supabase = getSupabaseAdmin();
       let matchedLeadId: string | null = null;
 
       if (callId) {
-        const { data } = await supabase.from('leads').select('id').eq('vapi_call_id', callId).maybeSingle();
-        if (data) matchedLeadId = data.id;
+        const lead = await prisma.lead.findFirst({
+          where: { vapi_call_id: callId },
+          select: { id: true },
+        });
+        if (lead) matchedLeadId = lead.id;
       }
 
       if (!matchedLeadId && customerPhone) {
         const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
         const lastNine = cleanPhone.slice(-9);
-        const { data: phoneLeads } = await supabase.from('leads').select('id, phone');
+        const phoneLeads = await prisma.lead.findMany({
+          select: { id: true, phone: true },
+        });
 
         const matched = phoneLeads?.find(l => {
           const lClean = (l.phone || '').replace(/[^0-9]/g, '');
@@ -310,27 +311,29 @@ export async function POST(req: Request) {
       }
 
       if (matchedLeadId) {
-        await supabase
-          .from('leads')
-          .update({
+        await prisma.lead.update({
+          where: { id: matchedLeadId },
+          data: {
             transcript: transcriptText || null,
             recording_url: recordingUrlText || null,
-          })
-          .eq('id', matchedLeadId);
+          },
+        });
 
         const summary = payload.summary || call?.analysis?.summary || message.summary || '';
         if (summary) {
           const summaryNoteText = `[Call Summary] ${summary}`;
-          const { data: existingNotes } = await supabase
-            .from('notes')
-            .select('id, note')
-            .eq('lead_id', matchedLeadId);
+          const existingNotes = await prisma.note.findMany({
+            where: { lead_id: matchedLeadId },
+            select: { id: true, note: true },
+          });
 
           const alreadyLogged = existingNotes?.some((n: { note: string }) =>
             n.note.startsWith('[Call Summary]')
           );
           if (!alreadyLogged) {
-            await supabase.from('notes').insert([{ lead_id: matchedLeadId, note: summaryNoteText }]);
+            await prisma.note.create({
+              data: { lead_id: matchedLeadId, note: summaryNoteText },
+            });
           }
         }
       }

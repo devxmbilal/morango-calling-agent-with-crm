@@ -97,8 +97,13 @@ export default function LeadDetailModal({
     try {
       await onAddNote(newNote);
       setNewNote('');
+      showToast('Note added successfully!', 'success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err) {
       console.error(err);
+      showToast('Failed to add note.', 'error');
     } finally {
       setIsSubmittingNote(false);
     }
@@ -209,6 +214,9 @@ export default function LeadDetailModal({
 
       setMeetingDate('');
       setMeetingLink('');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err: any) {
       console.error(err);
       showToast(err.message || 'Failed to schedule meeting.', 'error');

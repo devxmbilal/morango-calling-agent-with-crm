@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { isServerDbConfigured } from './supabase-admin';
+import { isServerDbConfigured } from './db-server';
 import { dbServer } from './db-server';
 import fs from 'fs';
 import path from 'path';

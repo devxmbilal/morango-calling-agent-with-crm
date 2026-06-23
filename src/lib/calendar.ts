@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { isServerDbConfigured } from './supabase-admin';
+import { isServerDbConfigured } from './db-server';
 import { dbServer } from './db-server';
 
 // Extract keys from environment
