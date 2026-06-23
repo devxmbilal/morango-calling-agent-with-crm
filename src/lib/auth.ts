@@ -262,7 +262,7 @@ export const authService = {
           created_at: 'asc',
         },
       });
-      return data.map((u) => ({
+      return data.map((u: any) => ({
         id: u.id,
         username: u.username,
         name: u.name || undefined,

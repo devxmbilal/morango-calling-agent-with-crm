@@ -21,22 +21,22 @@ export const dbServer = {
       },
     });
 
-    return leads.map((lead) => ({
+    return leads.map((lead: any) => ({
       ...lead,
       created_at: lead.created_at.toISOString(),
       meetings: (lead.meetings || [])
-        .map((m) => ({
+        .map((m: any) => ({
           ...m,
           created_at: m.created_at.toISOString(),
           meeting_date: m.meeting_date.toISOString(),
         }))
-        .sort((a, b) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime()),
+        .sort((a: any, b: any) => new Date(a.meeting_date).getTime() - new Date(b.meeting_date).getTime()),
       notes: (lead.notes || [])
-        .map((n) => ({
+        .map((n: any) => ({
           ...n,
           created_at: n.created_at.toISOString(),
         }))
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     })) as any[] as Lead[];
   },
 
@@ -192,7 +192,7 @@ export const dbServer = {
     if (!isServerDbConfigured) return {};
     const settings = await prisma.systemSetting.findMany();
     const map: Record<string, string> = {};
-    settings.forEach((row) => {
+    settings.forEach((row: any) => {
       map[row.key] = row.value;
     });
     return map;
