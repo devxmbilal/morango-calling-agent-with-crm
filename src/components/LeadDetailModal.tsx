@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Lead, Meeting, Note } from '@/lib/db';
-import { X, Calendar, MessageSquare, Mail, Phone, Briefcase, DollarSign, Tag, Clock, Plus, Edit, Trash } from 'lucide-react';
+import { X, Calendar, MessageSquare, Mail, Phone, Briefcase, DollarSign, Tag, Clock, Plus, Edit, Trash, Shield } from 'lucide-react';
 
 interface LeadDetailModalProps {
   lead: Lead;
@@ -180,7 +180,7 @@ export default function LeadDetailModal({
     setIsSubmittingMeeting(true);
     try {
       await onAddMeeting(meetingDate, meetingLink || undefined);
-      
+
       if (sendEmailOnSchedule) {
         if (!lead.email) {
           showToast('Meeting scheduled, but could not send email: Lead has no email address configured.', 'warning');
@@ -250,6 +250,10 @@ export default function LeadDetailModal({
   };
 
   const transcriptLines = parseTranscript(lead.transcript);
+  const callSummaryNote = lead.notes?.find(n => n.note.startsWith('[Call Summary]'));
+  const callSummaryText = callSummaryNote
+    ? callSummaryNote.note.replace('[Call Summary]', '').trim()
+    : 'No call summary available yet for this lead.';
 
   return (
     <div style={{
@@ -267,8 +271,8 @@ export default function LeadDetailModal({
       padding: '24px'
     }}>
       {/* Modal Container */}
-      <div 
-        className="glass-panel" 
+      <div
+        className="glass-panel"
         style={{
           width: '100%',
           maxWidth: '900px',
@@ -406,7 +410,7 @@ export default function LeadDetailModal({
                   </button>
                 )}
                 {onDeleteLead && (
-                  <button 
+                  <button
                     onClick={handleDelete}
                     className="btn btn-danger"
                     style={{ padding: '6px 12px', fontSize: '0.8rem' }}
@@ -441,7 +445,7 @@ export default function LeadDetailModal({
 
         {/* Modal Body */}
         <div className="modal-body-layout" style={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
-          
+
           {/* Left Panel: Contact info */}
           <div className="modal-side-panel" style={{
             width: '300px',
@@ -602,9 +606,9 @@ export default function LeadDetailModal({
                 <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: '#E8483D', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
                   Call Recording
                 </h4>
-                <audio 
-                  src={lead.recording_url} 
-                  controls 
+                <audio
+                  src={lead.recording_url}
+                  controls
                   style={{ width: '100%', height: '32px', outline: 'none' }}
                 />
                 <p style={{ fontSize: '0.65rem', color: '#7A5650', marginTop: '6px', textAlign: 'center', fontWeight: 500 }}>
@@ -643,7 +647,7 @@ export default function LeadDetailModal({
               >
                 Vapi Transcript
               </button>
-              
+
               <button
                 onClick={() => setActiveTab('notes')}
                 style={{
@@ -686,49 +690,120 @@ export default function LeadDetailModal({
             </div>
 
             {/* Tab Contents */}
-            <div style={{ flexGrow: 1, overflowY: 'auto', padding: '24px' }}>
-              
+            <div style={{ flexGrow: 1, overflowY: 'auto', padding: '24px', minHeight: '420px' }}>
+
               {/* Transcript Tab */}
               {activeTab === 'transcript' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {transcriptLines.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#9AA1AD', padding: '40px 0' }}>
-                      No call transcript available for this lead.
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '480px' }}>
+
+                  {/* Full-width WhatsApp-style Chat Window — fills everything */}
+                  <div style={{
+                    background: '#EFEAE2',
+                    backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")',
+                    backgroundSize: 'contain',
+                    border: '1px solid #DFDFDF',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    flex: 1,
+                  }}>
+                    {/* Chat Header */}
+                    <div style={{
+                      background: '#075E54',
+                      padding: '10px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      flexShrink: 0,
+                    }}>
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: '#25D366',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Phone size={16} color="#FFF" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>Call Transcript</div>
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>Morango AI Voice Agent · {lead.name}</div>
+                      </div>
                     </div>
-                  ) : (
-                    transcriptLines.map((line) => {
-                      const isAgent = line.speaker === 'Agent';
-                      return (
-                        <div
-                          key={line.id}
-                          style={{
-                            alignSelf: isAgent ? 'flex-start' : 'flex-end',
-                            maxWidth: '80%',
-                            background: isAgent ? '#FDEBE9' : '#FAFBFC',
-                            border: isAgent ? '1px solid #F6D5CF' : '1px solid #EBECEF',
-                            padding: '12px 16px',
-                            borderRadius: isAgent ? '0px 14px 14px 14px' : '14px 0px 14px 14px',
-                          }}
-                        >
-                          <p style={{
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            color: isAgent ? '#E8483D' : '#5A616E',
-                            marginBottom: '4px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.025em'
-                          }}>
-                            {line.speaker}
-                          </p>
-                          <p style={{ fontSize: '0.85rem', color: '#16191D', lineHeight: '1.45', fontWeight: 500 }}>
-                            {line.content}
-                          </p>
+
+                    {/* Chat Messages Area — scrollable */}
+                    <div style={{
+                      flex: 1,
+                      overflowY: 'auto',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}>
+                      {transcriptLines.length === 0 ? (
+                        <div style={{
+                          textAlign: 'center',
+                          color: '#555',
+                          background: 'rgba(255, 255, 255, 0.88)',
+                          padding: '24px 32px',
+                          borderRadius: '12px',
+                          fontSize: '0.85rem',
+                          margin: 'auto',
+                          alignSelf: 'center',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          fontWeight: 500,
+                        }}>
+                          No call transcript available for this lead.
                         </div>
-                      );
-                    })
-                  )}
+                      ) : (
+                        transcriptLines.map((line) => {
+                          const isAgent = line.speaker === 'Agent';
+                          return (
+                            <div
+                              key={line.id}
+                              style={{
+                                display: 'flex',
+                                justifyContent: isAgent ? 'flex-start' : 'flex-end',
+                              }}
+                            >
+                              <div style={{
+                                maxWidth: '72%',
+                                background: isAgent ? '#FFFFFF' : '#D9FDD3',
+                                padding: '8px 12px 6px 12px',
+                                borderRadius: isAgent ? '0px 10px 10px 10px' : '10px 0px 10px 10px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px',
+                                position: 'relative',
+                              }}>
+                                <span style={{
+                                  fontSize: '0.67rem',
+                                  fontWeight: 800,
+                                  color: isAgent ? '#075E54' : '#34B7F1',
+                                  letterSpacing: '0.02em',
+                                  display: 'block',
+                                  marginBottom: '1px'
+                                }}>
+                                  {isAgent ? '🤖 Alexa (Morango AI)' : `👤 ${lead.name || 'Client'}`}
+                                </span>
+                                <p style={{ margin: 0, fontSize: '0.83rem', color: '#111827', lineHeight: '1.45', fontWeight: 500, wordBreak: 'break-word' }}>
+                                  {line.content}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
+
+
 
               {/* Notes Tab */}
               {activeTab === 'notes' && (
@@ -887,7 +962,7 @@ export default function LeadDetailModal({
               {/* Meetings Tab */}
               {activeTab === 'meetings' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  
+
                   {/* Add Meeting Form */}
                   <div style={{
                     background: '#FAFBFC',
@@ -1063,29 +1138,28 @@ export default function LeadDetailModal({
               minWidth: '320px',
               padding: '16px 20px',
               borderRadius: '12px',
-              background: toast.type === 'success' 
-                ? '#ECFDF5' 
-                : toast.type === 'error' 
-                ? '#FEF2F2' 
-                : toast.type === 'warning'
-                ? '#FFFBEB'
-                : '#EFF6FF',
-              border: `1px solid ${
-                toast.type === 'success' 
-                  ? '#10B981' 
-                  : toast.type === 'error' 
-                  ? '#EF4444' 
+              background: toast.type === 'success'
+                ? '#ECFDF5'
+                : toast.type === 'error'
+                  ? '#FEF2F2'
                   : toast.type === 'warning'
-                  ? '#F59E0B'
-                  : '#3B82F6'
-              }`,
-              color: toast.type === 'success' 
-                ? '#065F46' 
-                : toast.type === 'error' 
-                ? '#991B1B' 
-                : toast.type === 'warning'
-                ? '#78350F'
-                : '#1E40AF',
+                    ? '#FFFBEB'
+                    : '#EFF6FF',
+              border: `1px solid ${toast.type === 'success'
+                  ? '#10B981'
+                  : toast.type === 'error'
+                    ? '#EF4444'
+                    : toast.type === 'warning'
+                      ? '#F59E0B'
+                      : '#3B82F6'
+                }`,
+              color: toast.type === 'success'
+                ? '#065F46'
+                : toast.type === 'error'
+                  ? '#991B1B'
+                  : toast.type === 'warning'
+                    ? '#78350F'
+                    : '#1E40AF',
               boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
               fontWeight: 600,
               fontSize: '0.9rem',
