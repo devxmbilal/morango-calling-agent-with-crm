@@ -1,5 +1,3 @@
-import { supabase, isSupabaseConfigured } from './supabase';
-
 export interface Lead {
   id: string;
   name: string;
@@ -34,10 +32,8 @@ export interface Note {
   created_at: string;
 }
 
-// Seed mock data for local storage demo mode
 const MOCK_LEADS: Lead[] = [];
 
-// Browser Local Storage helper
 const getLocalData = (): Lead[] => {
   if (typeof window === 'undefined') return MOCK_LEADS;
   const data = localStorage.getItem('morango_crm_leads');
@@ -54,48 +50,51 @@ const setLocalData = (leads: Lead[]) => {
   }
 };
 
+async function apiRequest<T = any>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers || {}),
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Request failed');
+  }
+  return data;
+}
+
+async function resolveDemoMode(): Promise<boolean> {
+  if (typeof window === 'undefined') return true;
+  try {
+    const data = await apiRequest<{ isDemoMode: boolean }>('/api/crm/status');
+    return data.isDemoMode;
+  } catch {
+    return true;
+  }
+}
+
 export const dbService = {
-  isDemoMode: !isSupabaseConfigured,
+  isDemoMode: true,
 
   async getLeads(): Promise<Lead[]> {
-    if (this.isDemoMode) {
+    const isDemo = await resolveDemoMode();
+    this.isDemoMode = isDemo;
+
+    if (isDemo) {
       return getLocalData();
     }
 
     try {
-      const { data: leads, error: leadsError } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (leadsError) throw leadsError;
-
-      // Fetch meetings and notes for each lead
-      const leadsWithRelations = await Promise.all(
-        (leads || []).map(async (lead) => {
-          const { data: meetings } = await supabase
-            .from('meetings')
-            .select('*')
-            .eq('lead_id', lead.id);
-
-          const { data: notes } = await supabase
-            .from('notes')
-            .select('*')
-            .eq('lead_id', lead.id)
-            .order('created_at', { ascending: false });
-
-          return {
-            ...lead,
-            meetings: meetings || [],
-            notes: notes || [],
-          };
-        })
-      );
-
-      return leadsWithRelations as Lead[];
+      const data = await apiRequest<{ leads: Lead[]; isDemoMode: boolean }>('/api/crm/leads');
+      this.isDemoMode = data.isDemoMode;
+      return data.leads;
     } catch (err) {
-      console.error('Supabase fetch error, falling back to mock data:', err);
-      // Fallback to local storage if query fails
+      console.error('API fetch error, falling back to mock data:', err);
+      this.isDemoMode = true;
       return getLocalData();
     }
   },
@@ -103,36 +102,34 @@ export const dbService = {
   async updateLeadStatus(id: string, status: Lead['status']): Promise<boolean> {
     if (this.isDemoMode) {
       const leads = getLocalData();
-      const updated = leads.map((l) => (l.id === id ? { ...l, status } : l));
-      setLocalData(updated);
+      setLocalData(leads.map(l => (l.id === id ? { ...l, status } : l)));
       return true;
     }
 
-    const { error } = await supabase
-      .from('leads')
-      .update({ status })
-      .eq('id', id);
-
-    return !error;
+    const data = await apiRequest<{ success: boolean }>('/api/crm/leads', {
+      method: 'PATCH',
+      body: JSON.stringify({ id, status }),
+    });
+    return data.success;
   },
 
   async updateLead(id: string, updatedFields: Partial<Lead>): Promise<boolean> {
     if (this.isDemoMode) {
       const leads = getLocalData();
-      const updated = leads.map((l) => (l.id === id ? { ...l, ...updatedFields } : l));
-      setLocalData(updated);
+      setLocalData(leads.map(l => (l.id === id ? { ...l, ...updatedFields } : l)));
       return true;
     }
 
-    const { error } = await supabase
-      .from('leads')
-      .update(updatedFields)
-      .eq('id', id);
-
-    return !error;
+    const data = await apiRequest<{ success: boolean }>('/api/crm/leads', {
+      method: 'PATCH',
+      body: JSON.stringify({ id, ...updatedFields }),
+    });
+    return data.success;
   },
 
-  async createLead(leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>): Promise<Lead> {
+  async createLead(
+    leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>
+  ): Promise<Lead> {
     if (this.isDemoMode) {
       const leads = getLocalData();
       const newLead: Lead = {
@@ -146,14 +143,11 @@ export const dbService = {
       return newLead;
     }
 
-    const { data, error } = await supabase
-      .from('leads')
-      .insert([leadData])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { ...data, meetings: [], notes: [] } as Lead;
+    const data = await apiRequest<{ lead: Lead }>('/api/crm/leads', {
+      method: 'POST',
+      body: JSON.stringify(leadData),
+    });
+    return data.lead;
   },
 
   async addNote(leadId: string, noteText: string): Promise<Note> {
@@ -165,88 +159,81 @@ export const dbService = {
         note: noteText,
         created_at: new Date().toISOString(),
       };
-      const updated = leads.map((l) => {
-        if (l.id === leadId) {
-          return {
-            ...l,
-            notes: [newNote, ...(l.notes || [])],
-          };
-        }
-        return l;
-      });
-      setLocalData(updated);
+      setLocalData(
+        leads.map(l =>
+          l.id === leadId ? { ...l, notes: [newNote, ...(l.notes || [])] } : l
+        )
+      );
       return newNote;
     }
 
-    const { data, error } = await supabase
-      .from('notes')
-      .insert([{ lead_id: leadId, note: noteText }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as Note;
+    const data = await apiRequest<{ note: Note }>('/api/crm/notes', {
+      method: 'POST',
+      body: JSON.stringify({ leadId, note: noteText }),
+    });
+    return data.note;
   },
 
   async updateNote(noteId: string, leadId: string, noteText: string): Promise<boolean> {
     if (this.isDemoMode) {
       const leads = getLocalData();
-      const updated = leads.map((l) => {
-        if (l.id === leadId) {
-          return {
-            ...l,
-            notes: (l.notes || []).map((n) => (n.id === noteId ? { ...n, note: noteText } : n)),
-          };
-        }
-        return l;
-      });
-      setLocalData(updated);
+      setLocalData(
+        leads.map(l =>
+          l.id === leadId
+            ? {
+                ...l,
+                notes: (l.notes || []).map(n =>
+                  n.id === noteId ? { ...n, note: noteText } : n
+                ),
+              }
+            : l
+        )
+      );
       return true;
     }
 
-    const { error } = await supabase
-      .from('notes')
-      .update({ note: noteText })
-      .eq('id', noteId);
-
-    return !error;
+    const data = await apiRequest<{ success: boolean }>('/api/crm/notes', {
+      method: 'PATCH',
+      body: JSON.stringify({ noteId, note: noteText }),
+    });
+    return data.success;
   },
 
   async deleteNote(noteId: string, leadId: string): Promise<boolean> {
     if (this.isDemoMode) {
       const leads = getLocalData();
-      const updated = leads.map((l) => {
-        if (l.id === leadId) {
-          return {
-            ...l,
-            notes: (l.notes || []).filter((n) => n.id !== noteId),
-          };
-        }
-        return l;
-      });
-      setLocalData(updated);
+      setLocalData(
+        leads.map(l =>
+          l.id === leadId
+            ? { ...l, notes: (l.notes || []).filter(n => n.id !== noteId) }
+            : l
+        )
+      );
       return true;
     }
 
-    const { error } = await supabase
-      .from('notes')
-      .delete()
-      .eq('id', noteId);
-
-    return !error;
+    const data = await apiRequest<{ success: boolean }>(
+      `/api/crm/notes?noteId=${encodeURIComponent(noteId)}`,
+      { method: 'DELETE' }
+    );
+    return data.success;
   },
 
   async addMeeting(leadId: string, meetingDate: string, meetingLink?: string): Promise<Meeting> {
-    let activeLink = meetingLink;
-
     if (this.isDemoMode) {
       const leads = getLocalData();
+      let activeLink = meetingLink;
+
       if (!activeLink) {
         try {
           const res = await fetch('/api/settings');
           if (res.ok) {
             const config = await res.json();
-            if (config.meeting_link && config.meeting_link !== 'https://calendly.com/morangoai' && config.meeting_link !== 'https://calendly.com/mornagoai') {
+            if (
+              config.meeting_link &&
+              config.meeting_link !== 'https://calendly.com/morangoai' &&
+              config.meeting_link !== 'https://calendly.com/mornagoai'
+            ) {
               activeLink = config.meeting_link;
             }
           }
@@ -255,7 +242,12 @@ export const dbService = {
         }
       }
 
-      if (!activeLink || activeLink.trim() === '' || activeLink === 'https://calendly.com/morangoai' || activeLink === 'https://calendly.com/mornagoai') {
+      if (
+        !activeLink ||
+        activeLink.trim() === '' ||
+        activeLink === 'https://calendly.com/morangoai' ||
+        activeLink === 'https://calendly.com/mornagoai'
+      ) {
         throw new Error('No meeting link configured. Please set a meeting link in settings first.');
       }
 
@@ -267,61 +259,32 @@ export const dbService = {
         status: 'Scheduled',
         created_at: new Date().toISOString(),
       };
-      const updated = leads.map((l) => {
-        if (l.id === leadId) {
-          return {
-            ...l,
-            meetings: [...(l.meetings || []), newMeeting],
-          };
-        }
-        return l;
-      });
-      setLocalData(updated);
+
+      setLocalData(
+        leads.map(l =>
+          l.id === leadId ? { ...l, meetings: [...(l.meetings || []), newMeeting] } : l
+        )
+      );
       return newMeeting;
     }
 
-    // Supabase mode - fetch fallback link from settings if none provided
-    if (!activeLink) {
-      try {
-        const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
-        if (data && data.value && data.value !== 'https://calendly.com/morangoai' && data.value !== 'https://calendly.com/mornagoai') {
-          activeLink = data.value;
-        }
-      } catch (e) {
-        console.error('Error fetching fallback link for manual meeting:', e);
-      }
-    }
-
-    if (!activeLink || activeLink.trim() === '' || activeLink === 'https://calendly.com/morangoai' || activeLink === 'https://calendly.com/mornagoai') {
-      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
-    }
-
-    const { data, error } = await supabase
-      .from('meetings')
-      .insert([
-        {
-          lead_id: leadId,
-          meeting_date: meetingDate,
-          meeting_link: activeLink,
-          status: 'Scheduled',
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data as Meeting;
+    const data = await apiRequest<{ meeting: Meeting }>('/api/crm/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ leadId, meetingDate, meetingLink }),
+    });
+    return data.meeting;
   },
 
   async deleteLead(id: string): Promise<boolean> {
     if (this.isDemoMode) {
-      const leads = getLocalData();
-      const filtered = leads.filter((l) => l.id !== id);
-      setLocalData(filtered);
+      setLocalData(getLocalData().filter(l => l.id !== id));
       return true;
     }
 
-    const { error } = await supabase.from('leads').delete().eq('id', id);
-    return !error;
-  }
+    const data = await apiRequest<{ success: boolean }>(
+      `/api/crm/leads?id=${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    return data.success;
+  },
 };

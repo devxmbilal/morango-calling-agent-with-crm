@@ -58,7 +58,7 @@ export default function EmailView({ leads }: EmailViewProps) {
           </span>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#16191D' }}>Automated emails</div>
-            <div style={{ fontSize: '11.5px', color: '#9AA1AD', fontWeight: 600 }}>Sent by n8n workflow after each call</div>
+            <div style={{ fontSize: '11.5px', color: '#9AA1AD', fontWeight: 600 }}>Sent automatically after each call or meeting</div>
           </div>
         </div>
 
@@ -67,7 +67,7 @@ export default function EmailView({ leads }: EmailViewProps) {
           <div style={{ padding: '40px', textAlign: 'center', color: '#9AA1AD' }}>
             <AlertCircle size={32} style={{ marginBottom: '10px', color: '#AEB4BE' }} />
             <div style={{ fontSize: '13px', fontWeight: 600 }}>No Email Activity Yet</div>
-            <p style={{ fontSize: '11.5px', marginTop: '4px', color: '#AEB4BE', margin: 0 }}>Emails sent by your n8n integration will populate here.</p>
+            <p style={{ fontSize: '11.5px', marginTop: '4px', color: '#AEB4BE', margin: 0 }}>Confirmation and reminder emails will appear here once leads are captured.</p>
           </div>
         ) : (
           emails.map((email) => (

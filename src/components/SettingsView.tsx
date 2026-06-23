@@ -5,19 +5,11 @@ import { Database, User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, 
 
 interface SettingsViewProps {
   isDemoMode: boolean;
-  dbUrlInitial: string;
-  dbAnonKeyInitial: string;
-  onSaveDbSettings: (url: string, key: string) => void;
-  onClearDbSettings: () => void;
   onProfileUpdate?: () => void;
 }
 
 export default function SettingsView({
   isDemoMode,
-  dbUrlInitial,
-  dbAnonKeyInitial,
-  onSaveDbSettings,
-  onClearDbSettings,
   onProfileUpdate
 }: SettingsViewProps) {
   // Tabs: 'profile' | 'database' | 'users' | 'mail'
@@ -36,10 +28,6 @@ export default function SettingsView({
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
   const [smtpError, setSmtpError] = useState('');
   const [smtpSuccess, setSmtpSuccess] = useState('');
-
-  // Database Connection states
-  const [dbUrl, setDbUrl] = useState(dbUrlInitial);
-  const [dbAnonKey, setDbAnonKey] = useState(dbAnonKeyInitial);
 
   // Active User Profile states
   const [currentUserId, setCurrentUserId] = useState('');
@@ -284,12 +272,6 @@ export default function SettingsView({
     }
   }, [activeSubTab]);
 
-  // Handle DB configurations save
-  const handleDbSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSaveDbSettings(dbUrl, dbAnonKey);
-  };
-
   // Handle My Profile Update
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,8 +328,8 @@ export default function SettingsView({
       return;
     }
     if (userPassword.length < 6) {
-      setUserError('Password must be at least 6 characters.');
-      showToast('Password must be at least 6 characters.', 'error');
+      setUserError('Password must be at least 8 characters.');
+      showToast('Password must be at least 8 characters.', 'error');
       return;
     }
 
@@ -558,59 +540,40 @@ export default function SettingsView({
 
         {/* SUBTAB 2: DATABASE CONFIG */}
         {activeSubTab === 'database' && (
-          <div style={{ maxWidth: '540px' }}>
+          <div style={{ maxWidth: '640px' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 800, color: '#16191D' }}>Database Connection</h3>
             <p style={{ margin: '0 0 20px 0', fontSize: '12.5px', color: '#9AA1AD', fontWeight: 500 }}>
-              Configure your Supabase PostgreSQL integration. This stores credentials locally in your browser.
+              Supabase is configured on the server via environment variables. The browser never stores database credentials.
             </p>
 
-            <form onSubmit={handleDbSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
-                  Supabase URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://your-project.supabase.co"
-                  value={dbUrl}
-                  onChange={(e) => setDbUrl(e.target.value)}
-                  required
-                  style={{ height: '40px', fontSize: '0.88rem' }}
-                />
+            <div style={{
+              padding: '16px 18px',
+              borderRadius: '12px',
+              border: '1px solid #ECEDEF',
+              background: isDemoMode ? '#FFFBEB' : '#F0FDF4',
+              marginBottom: '16px',
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#16191D', marginBottom: '6px' }}>
+                Status: {isDemoMode ? 'Demo mode (local browser storage)' : 'Connected to Supabase'}
               </div>
+              <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.5 }}>
+                {isDemoMode
+                  ? 'Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your server environment, then restart the app.'
+                  : 'Production database access is handled securely through authenticated API routes.'}
+              </div>
+            </div>
 
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E', display: 'block', marginBottom: '6px' }}>
-                  Supabase Anon Key
-                </label>
-                <input
-                  type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  value={dbAnonKey}
-                  onChange={(e) => setDbAnonKey(e.target.value)}
-                  required
-                  style={{ height: '40px', fontSize: '0.88rem' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ height: '40px', padding: '0 20px' }}
-                  onClick={onClearDbSettings}
-                >
-                  Clear Config
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ height: '40px', padding: '0 24px' }}
-                >
-                  Save &amp; Connect
-                </button>
-              </div>
-            </form>
+            <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: 1.6 }}>
+              <strong>Required server variables:</strong>
+              <ul style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
+                <li>NEXT_PUBLIC_SUPABASE_URL</li>
+                <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+                <li>SUPABASE_SERVICE_ROLE_KEY</li>
+                <li>JWT_SECRET</li>
+                <li>VAPI_WEBHOOK_SECRET</li>
+                <li>CRON_SECRET</li>
+              </ul>
+            </div>
           </div>
         )}
 

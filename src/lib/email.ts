@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { isServerDbConfigured } from './supabase-admin';
+import { dbServer } from './db-server';
 import fs from 'fs';
 import path from 'path';
 
@@ -32,20 +33,13 @@ async function getSmtpTransporter(): Promise<{ transporter: nodemailer.Transport
     let from = 'sales@morangoai.com';
 
     // 1. Fetch credentials dynamically
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from('system_settings').select('*');
-      if (!error && data) {
-        const settingsMap: Record<string, string> = {};
-        data.forEach(row => {
-          settingsMap[row.key] = row.value;
-        });
-
-        host = settingsMap['smtp_host'] || '';
-        port = parseInt(settingsMap['smtp_port'] || '587');
-        user = settingsMap['smtp_user'] || '';
-        pass = settingsMap['smtp_pass'] || '';
-        from = settingsMap['smtp_from'] || 'sales@morangoai.com';
-      }
+    if (isServerDbConfigured) {
+      const settingsMap = await dbServer.getAllSettings();
+      host = settingsMap['smtp_host'] || '';
+      port = parseInt(settingsMap['smtp_port'] || '587');
+      user = settingsMap['smtp_user'] || '';
+      pass = settingsMap['smtp_pass'] || '';
+      from = settingsMap['smtp_from'] || 'sales@morangoai.com';
     } else {
       const settingsMap = readMockSettings();
       host = settingsMap['smtp_host'] || '';
@@ -131,11 +125,8 @@ export async function sendConfirmationEmail(args: {
     let activeMeetingLink = args.meetingLink;
     if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
       try {
-        if (isSupabaseConfigured) {
-          const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
-          if (data && data.value) {
-            activeMeetingLink = data.value;
-          }
+        if (isServerDbConfigured) {
+          activeMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
         }
       } catch (err) {
         console.error('Error fetching fallback link for confirmation email:', err);
@@ -311,11 +302,8 @@ export async function sendMeetingReminderEmail(args: {
     let activeMeetingLink = args.meetingLink;
     if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
       try {
-        if (isSupabaseConfigured) {
-          const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
-          if (data && data.value) {
-            activeMeetingLink = data.value;
-          }
+        if (isServerDbConfigured) {
+          activeMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
         }
       } catch (err) {
         console.error('Error fetching fallback link for reminder email:', err);

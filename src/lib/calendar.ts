@@ -1,8 +1,6 @@
 import { google } from 'googleapis';
-import { supabase, isSupabaseConfigured } from './supabase';
-import { dbService, Lead, Meeting } from './db';
-import fs from 'fs';
-import path from 'path';
+import { isServerDbConfigured } from './supabase-admin';
+import { dbServer } from './db-server';
 
 // Extract keys from environment
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
@@ -43,41 +41,21 @@ export async function checkMeetingConflict(
 
     // A meeting occupies a 30-minute slot.
     // There is a conflict if another meeting is scheduled within ±29 minutes of the requested start time.
-    const startWindow = new Date(requestedDate.getTime() - 29 * 60 * 1000).toISOString();
-    const endWindow = new Date(requestedDate.getTime() + 29 * 60 * 1000).toISOString();
 
     let scheduledMeetings: { meeting_date: string }[] = [];
 
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('meetings')
-        .select('meeting_date')
-        .eq('status', 'Scheduled')
-        .gte('meeting_date', startWindow)
-        .lte('meeting_date', endWindow);
-
-      if (!error && data) {
-        scheduledMeetings = data;
-      }
-    } else {
-      // Demo/localStorage mode checks
-      const leads = await dbService.getLeads();
-      const allMeetings: Meeting[] = [];
-      leads.forEach(l => {
-        if (l.meetings) {
-          l.meetings.forEach(m => {
-            if (m.status === 'Scheduled') {
-              allMeetings.push(m);
-            }
-          });
-        }
-      });
-
-      scheduledMeetings = allMeetings.filter(m => {
-        const mTime = new Date(m.meeting_date).getTime();
-        const rTime = requestedDate.getTime();
-        return Math.abs(mTime - rTime) < 29 * 60 * 1000;
-      });
+    if (isServerDbConfigured) {
+      const leads = await dbServer.getLeads();
+      scheduledMeetings = leads.flatMap(lead =>
+        (lead.meetings || [])
+          .filter(m => m.status === 'Scheduled')
+          .filter(m => {
+            const mTime = new Date(m.meeting_date).getTime();
+            const rTime = requestedDate.getTime();
+            return Math.abs(mTime - rTime) < 29 * 60 * 1000;
+          })
+          .map(m => ({ meeting_date: m.meeting_date }))
+      );
     }
 
     if (scheduledMeetings.length === 0) {
@@ -90,25 +68,13 @@ export async function checkMeetingConflict(
 
     // Fetch all existing scheduled meetings to check suggestions against
     let allScheduledMeetings: Date[] = [];
-    if (isSupabaseConfigured) {
-      const { data } = await supabase
-        .from('meetings')
-        .select('meeting_date')
-        .eq('status', 'Scheduled');
-      if (data) {
-        allScheduledMeetings = data.map(d => new Date(d.meeting_date));
-      }
-    } else {
-      const leads = await dbService.getLeads();
-      leads.forEach(l => {
-        if (l.meetings) {
-          l.meetings.forEach(m => {
-            if (m.status === 'Scheduled') {
-              allScheduledMeetings.push(new Date(m.meeting_date));
-            }
-          });
-        }
-      });
+    if (isServerDbConfigured) {
+      const leads = await dbServer.getLeads();
+      allScheduledMeetings = leads.flatMap(lead =>
+        (lead.meetings || [])
+          .filter(m => m.status === 'Scheduled')
+          .map(m => new Date(m.meeting_date))
+      );
     }
 
     while (suggestions.length < 3 && testOffsetMinutes < 1440) { // Limit to 24 hours search
@@ -167,11 +133,8 @@ export async function createCalendarEvent(args: {
   // Load dynamic meeting link fallback (from database settings or local config)
   let fallbackMeetingLink = '';
   try {
-    if (isSupabaseConfigured) {
-      const { data } = await supabase.from('system_settings').select('value').eq('key', 'meeting_link').single();
-      if (data && data.value) {
-        fallbackMeetingLink = data.value;
-      }
+    if (isServerDbConfigured) {
+      fallbackMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
     }
   } catch (err) {
     console.error('Error fetching fallback meeting link:', err);

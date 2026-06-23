@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { verifyWebhookSecret } from '@/lib/api-auth';
+import { getSupabaseAdmin, isServerDbConfigured } from '@/lib/supabase-admin';
 import { checkMeetingConflict, createCalendarEvent } from '@/lib/calendar';
 import { sendConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
-import { startReminderScheduler } from '@/lib/scheduler';
 
 export async function POST(req: Request) {
   try {
-    // Guarantee scheduler is running
-    startReminderScheduler();
+    if (!verifyWebhookSecret(req, 'VAPI_WEBHOOK_SECRET', 'x-vapi-secret')) {
+      return NextResponse.json({ error: 'Unauthorized webhook.' }, { status: 401 });
+    }
 
     const payload = await req.json();
     const { message } = payload;
@@ -16,27 +17,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid Vapi payload' }, { status: 400 });
     }
 
-    // Extract call details from payload root or message nested root
     const call = payload.call || message.call || message.functionCall?.call || null;
     const callId = call?.id || payload.callId || message.callId || '';
 
-    // 1. Handle Function Call / Tool Calls (e.g. create_lead)
     if (message.type === 'tool-calls' || message.type === 'function-call') {
       let toolCallId = '';
       let functionName = '';
-      let args: any = {};
+      let args: Record<string, string> = {};
 
-      if (message.type === 'tool-calls' && message.toolCalls && message.toolCalls.length > 0) {
+      if (message.type === 'tool-calls' && message.toolCalls?.length > 0) {
         const toolCall = message.toolCalls[0];
         toolCallId = toolCall.id;
         functionName = toolCall.function?.name || '';
-        
+
         const rawArgs = toolCall.function?.arguments;
         if (typeof rawArgs === 'string') {
           try {
             args = JSON.parse(rawArgs);
-          } catch (e) {
-            console.error('Failed to parse toolCall arguments:', e);
+          } catch {
             args = {};
           }
         } else if (rawArgs && typeof rawArgs === 'object') {
@@ -54,9 +52,9 @@ export async function POST(req: Request) {
         if (!name || !phone || !email) {
           return NextResponse.json({
             results: [{
-              toolCallId: toolCallId,
-              result: 'Missing required parameters: name, phone, or email'
-            }]
+              toolCallId,
+              result: 'Missing required parameters: name, phone, or email',
+            }],
           }, { status: 200 });
         }
 
@@ -66,7 +64,6 @@ export async function POST(req: Request) {
             const parsedDate = new Date(meeting_date);
             if (!isNaN(parsedDate.getTime())) {
               const currentDate = new Date();
-              // If Vapi sent a year that is in the past, adjust the year to the current year
               if (parsedDate.getFullYear() < currentDate.getFullYear()) {
                 parsedDate.setFullYear(currentDate.getFullYear());
               }
@@ -77,27 +74,29 @@ export async function POST(req: Request) {
           }
         }
 
-        // 1. Availability check: check for scheduling conflicts
         if (finalMeetingDate) {
           const availability = await checkMeetingConflict(finalMeetingDate);
           if (availability.conflict) {
             return NextResponse.json({
               results: [{
-                toolCallId: toolCallId,
+                toolCallId,
                 result: JSON.stringify({
                   status: 'conflict',
                   message: `The requested time slot is already booked. Please politely ask the caller to choose one of these alternative times instead: ${availability.suggestions?.join(', ')}.`,
-                  suggestions: availability.suggestions
-                })
-              }]
-            }, { status: 200 }); // Vapi tool returns 200 with result context
+                  suggestions: availability.suggestions,
+                }),
+              }],
+            }, { status: 200 });
           }
         }
 
-        // 2. Save or Update Lead
         let leadId = 'demo-lead-id';
-        if (isSupabaseConfigured) {
+        let meetingLink = '';
+
+        if (isServerDbConfigured) {
+          const supabase = getSupabaseAdmin();
           let existingLead = null;
+
           if (callId) {
             const { data } = await supabase
               .from('leads')
@@ -121,7 +120,7 @@ export async function POST(req: Request) {
           }
 
           const validStatuses = ['New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
-          let finalStatus = 'New Lead';
+          let finalStatus: string = 'New Lead';
           if (status && validStatuses.includes(status)) {
             finalStatus = status;
           } else if (finalMeetingDate) {
@@ -139,7 +138,7 @@ export async function POST(req: Request) {
                 service: service || existingLead.service,
                 budget: budget || existingLead.budget,
                 status: finalStatus,
-                vapi_call_id: callId || existingLead.vapi_call_id
+                vapi_call_id: callId || existingLead.vapi_call_id,
               })
               .eq('id', existingLead.id)
               .select()
@@ -147,7 +146,6 @@ export async function POST(req: Request) {
 
             if (updateError) throw updateError;
             if (updatedLead) leadId = updatedLead.id;
-            console.log(`Updated existing lead ${leadId} from Vapi call.`);
           } else {
             const { data: lead, error: leadError } = await supabase
               .from('leads')
@@ -160,70 +158,38 @@ export async function POST(req: Request) {
                 budget: budget || null,
                 source: 'Vapi Call',
                 status: finalStatus,
-                vapi_call_id: callId || null
+                vapi_call_id: callId || null,
               }])
               .select()
               .single();
 
             if (leadError) throw leadError;
             if (lead) leadId = lead.id;
-            console.log(`Created new lead ${leadId} from Vapi call.`);
           }
-        }
 
-        // 2.5 Save AI Lead Intent Analysis Note
-        if (lead_evaluation && isSupabaseConfigured) {
-          const analysisNoteText = `[AI Intent Analysis] ${lead_evaluation}`;
-          try {
+          if (lead_evaluation) {
+            const analysisNoteText = `[AI Intent Analysis] ${lead_evaluation}`;
             const { data: existingNotes } = await supabase
               .from('notes')
               .select('id, note')
               .eq('lead_id', leadId);
-              
-            const existingAnalysisNote = existingNotes?.find((n: any) => n.note.startsWith('[AI Intent Analysis]'));
-            
+
+            const existingAnalysisNote = existingNotes?.find((n: { note: string }) =>
+              n.note.startsWith('[AI Intent Analysis]')
+            );
+
             if (existingAnalysisNote) {
-              await supabase
-                .from('notes')
-                .update({ note: analysisNoteText })
-                .eq('id', existingAnalysisNote.id);
-              console.log(`Updated AI Lead Intent Analysis for lead ${leadId}`);
+              await supabase.from('notes').update({ note: analysisNoteText }).eq('id', existingAnalysisNote.id);
             } else {
-              await supabase.from('notes').insert([{
-                lead_id: leadId,
-                note: analysisNoteText
-              }]);
-              console.log(`Created new AI Lead Intent Analysis for lead ${leadId}`);
+              await supabase.from('notes').insert([{ lead_id: leadId, note: analysisNoteText }]);
             }
-          } catch (err) {
-            console.error('Error saving AI Lead Intent Analysis:', err);
           }
         }
 
-        // Fetch admin email dynamically to trigger notification
-        let adminNotificationEmail = 'sales@morangoai.com';
-        try {
-          if (isSupabaseConfigured) {
-            const { data } = await supabase.from('system_settings').select('value').eq('key', 'admin_email').single();
-            if (data && data.value) {
-              adminNotificationEmail = data.value;
-            }
-          } else {
-            const fs = require('fs');
-            const path = require('path');
-            const MOCK_SETTINGS_FILE = path.join(process.cwd(), 'src/lib/mock_settings.json');
-            if (fs.existsSync(MOCK_SETTINGS_FILE)) {
-              const mockData = JSON.parse(fs.readFileSync(MOCK_SETTINGS_FILE, 'utf-8'));
-              if (mockData.admin_email) {
-                adminNotificationEmail = mockData.admin_email;
-              }
-            }
-          }
-        } catch (err) {
-          console.error('Error fetching admin email setting:', err);
-        }
+        const adminNotificationEmail =
+          (isServerDbConfigured ? await getSupabaseAdmin().from('system_settings').select('value').eq('key', 'admin_email').single().then(r => r.data?.value) : null)
+          || 'sales@morangoai.com';
 
-        // Trigger admin alert email
         await sendAdminNotificationEmail({
           to: adminNotificationEmail,
           lead: {
@@ -232,30 +198,23 @@ export async function POST(req: Request) {
             email,
             service: service || 'AI Agent',
             budget: budget || undefined,
-            meetingDate: finalMeetingDate || undefined
-          }
+            meetingDate: finalMeetingDate || undefined,
+          },
         });
 
-        // 3. Create Google Calendar Appointment & Send Nodemailer Confirmation
-        // Generate a realistic Google Meet link format (e.g. meet.google.com/abc-defg-hij)
-        const chars = 'abcdefghijklmnopqrstuvwxyz';
-        const part1 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
-        const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * 26)]).join('');
-        const part3 = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * 26)]).join('');
-        let meetingLink = `https://meet.google.com/${part1}-${part2}-${part3}`;
         if (finalMeetingDate) {
           const calendarEvent = await createCalendarEvent({
             name,
             email,
             service: service || 'AI Agent',
             budget: budget || undefined,
-            meetingDate: finalMeetingDate
+            meetingDate: finalMeetingDate,
           });
 
           meetingLink = calendarEvent.meetingLink;
 
-          if (isSupabaseConfigured) {
-            // Check if there is already a scheduled meeting for this lead
+          if (isServerDbConfigured) {
+            const supabase = getSupabaseAdmin();
             const { data: existingMeeting } = await supabase
               .from('meetings')
               .select('*')
@@ -268,136 +227,112 @@ export async function POST(req: Request) {
                 .from('meetings')
                 .update({
                   meeting_date: new Date(finalMeetingDate).toISOString(),
-                  meeting_link: meetingLink
+                  meeting_link: meetingLink,
                 })
                 .eq('id', existingMeeting.id);
-              console.log(`Updated scheduled meeting for lead ${leadId}`);
             } else {
-              await supabase
-                .from('meetings')
-                .insert([{
-                  lead_id: leadId,
-                  meeting_date: new Date(finalMeetingDate).toISOString(),
-                  meeting_link: meetingLink,
-                  status: 'Scheduled'
-                }]);
-              console.log(`Created new scheduled meeting for lead ${leadId}`);
+              await supabase.from('meetings').insert([{
+                lead_id: leadId,
+                meeting_date: new Date(finalMeetingDate).toISOString(),
+                meeting_link: meetingLink,
+                status: 'Scheduled',
+              }]);
             }
           }
 
-          // Trigger email notification
           await sendConfirmationEmail({
             to: email,
             name,
             service: service || 'AI Agent',
             meetingLink,
-            meetingDate: finalMeetingDate
+            meetingDate: finalMeetingDate,
           });
         }
 
         return NextResponse.json({
           results: [{
-            toolCallId: toolCallId,
+            toolCallId,
             result: JSON.stringify({
               status: 'success',
               message: 'Lead saved and consultation meeting scheduled successfully in MorangoAI CRM.',
               lead_id: leadId,
-              meeting_link: meetingLink
-            })
-          }]
+              meeting_link: meetingLink || undefined,
+            }),
+          }],
         }, { status: 200 });
       }
     }
 
-    // 2. Handle End of Call Report (Transcript and Recording)
     if (message.type === 'end-of-call-report') {
       const customerPhone = call?.customer?.number || payload.customer?.number || '';
+      const transcriptText =
+        message.transcript ||
+        call?.transcript ||
+        payload.transcript ||
+        message.artifact?.transcript ||
+        payload.artifact?.transcript ||
+        '';
+      const recordingUrlText =
+        message.recordingUrl ||
+        message.recording_url ||
+        call?.recordingUrl ||
+        call?.recording_url ||
+        payload.recordingUrl ||
+        payload.recording_url ||
+        message.artifact?.recordingUrl ||
+        message.artifact?.recording_url ||
+        payload.artifact?.recordingUrl ||
+        payload.artifact?.recording_url ||
+        '';
 
-      // Extract transcript and recordingUrl from all possible locations, including message.artifact
-      const transcriptText = message.transcript || call?.transcript || payload.transcript || message.artifact?.transcript || payload.artifact?.transcript || '';
-      const recordingUrlText = message.recordingUrl || message.recording_url || call?.recordingUrl || call?.recording_url || payload.recordingUrl || payload.recording_url || message.artifact?.recordingUrl || message.artifact?.recording_url || payload.artifact?.recordingUrl || payload.artifact?.recording_url || '';
-
-      console.log('Received end-of-call-report event:', {
-        callId: callId,
-        phone: customerPhone,
-        hasTranscript: !!transcriptText,
-        hasRecording: !!recordingUrlText
-      });
-
-      if (!isSupabaseConfigured) {
-        console.log('Received end-of-call-report in demo mode:', { customerPhone, recordingUrlText });
+      if (!isServerDbConfigured) {
         return NextResponse.json({ success: true, mode: 'demo' }, { status: 200 });
       }
 
-      // 1. Match the Lead ID (either by callId or phone number fallback)
-      let matchedLeadId = null;
+      const supabase = getSupabaseAdmin();
+      let matchedLeadId: string | null = null;
+
       if (callId) {
-        const { data } = await supabase
-          .from('leads')
-          .select('id')
-          .eq('vapi_call_id', callId)
-          .maybeSingle();
+        const { data } = await supabase.from('leads').select('id').eq('vapi_call_id', callId).maybeSingle();
         if (data) matchedLeadId = data.id;
       }
 
       if (!matchedLeadId && customerPhone) {
-        // Robust phone matching: strip non-digits and compare trailing digits
         const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
         const lastNine = cleanPhone.slice(-9);
-        
-        const { data: phoneLeads } = await supabase
-          .from('leads')
-          .select('id, phone');
-          
-        if (phoneLeads) {
-          const matched = phoneLeads.find(l => {
-            const lClean = (l.phone || '').replace(/[^0-9]/g, '');
-            return lClean === cleanPhone || (lastNine && lClean.endsWith(lastNine));
-          });
-          if (matched) matchedLeadId = matched.id;
-        }
+        const { data: phoneLeads } = await supabase.from('leads').select('id, phone');
+
+        const matched = phoneLeads?.find(l => {
+          const lClean = (l.phone || '').replace(/[^0-9]/g, '');
+          return lClean === cleanPhone || (lastNine && lClean.endsWith(lastNine));
+        });
+        if (matched) matchedLeadId = matched.id;
       }
 
       if (matchedLeadId) {
-        // 2. Update Lead Details (Transcript and Recording URL)
-        const { error: updateError } = await supabase
+        await supabase
           .from('leads')
           .update({
             transcript: transcriptText || null,
-            recording_url: recordingUrlText || null
+            recording_url: recordingUrlText || null,
           })
           .eq('id', matchedLeadId);
 
-        if (updateError) {
-          console.error(`Error updating transcript/recording for lead ${matchedLeadId}:`, updateError);
-        } else {
-          console.log(`Saved transcript and recording URL for lead ${matchedLeadId}`);
-        }
-
-        // 3. Save AI Call Summary as a CRM Note
         const summary = payload.summary || call?.analysis?.summary || message.summary || '';
         if (summary) {
           const summaryNoteText = `[Call Summary] ${summary}`;
-          try {
-            const { data: existingNotes } = await supabase
-              .from('notes')
-              .select('id, note')
-              .eq('lead_id', matchedLeadId);
+          const { data: existingNotes } = await supabase
+            .from('notes')
+            .select('id, note')
+            .eq('lead_id', matchedLeadId);
 
-            const alreadyLogged = existingNotes?.some((n: any) => n.note.startsWith('[Call Summary]'));
-            if (!alreadyLogged) {
-              await supabase.from('notes').insert([{
-                lead_id: matchedLeadId,
-                note: summaryNoteText
-              }]);
-              console.log(`Saved call summary note for lead ${matchedLeadId}`);
-            }
-          } catch (err) {
-            console.error('Error saving call summary note:', err);
+          const alreadyLogged = existingNotes?.some((n: { note: string }) =>
+            n.note.startsWith('[Call Summary]')
+          );
+          if (!alreadyLogged) {
+            await supabase.from('notes').insert([{ lead_id: matchedLeadId, note: summaryNoteText }]);
           }
         }
-      } else {
-        console.warn(`Could not match any lead for call ID ${call?.id} or phone ${customerPhone}`);
       }
 
       return NextResponse.json({ success: true }, { status: 200 });

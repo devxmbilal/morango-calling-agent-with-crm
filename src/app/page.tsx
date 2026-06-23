@@ -46,9 +46,7 @@ export default function Dashboard() {
     }, 4500);
   };
 
-  // Settings state (inputs)
-  const [dbUrl, setDbUrl] = useState('');
-  const [dbAnonKey, setDbAnonKey] = useState('');
+  // Settings state removed — DB credentials are server-side only
 
   // Fetch leads on mount
   const fetchLeads = async () => {
@@ -79,15 +77,8 @@ export default function Dashboard() {
   useEffect(() => {
     fetchLeads();
     fetchSession();
-    
-    // Load client credentials if present
-    if (typeof window !== 'undefined') {
-      const storedUrl = localStorage.getItem('supabase_client_url') || '';
-      const storedKey = localStorage.getItem('supabase_client_anon_key') || '';
-      setDbUrl(storedUrl);
-      setDbAnonKey(storedKey);
 
-      // Load read notifications
+    if (typeof window !== 'undefined') {
       const storedNotifs = localStorage.getItem('crm_read_notifications');
       if (storedNotifs) {
         try {
@@ -732,20 +723,6 @@ export default function Dashboard() {
               {activeTab === 'settings' && (
                 <SettingsView 
                   isDemoMode={isDemoMode}
-                  dbUrlInitial={dbUrl}
-                  dbAnonKeyInitial={dbAnonKey}
-                  onSaveDbSettings={(url, key) => {
-                    localStorage.setItem('supabase_client_url', url);
-                    localStorage.setItem('supabase_client_anon_key', key);
-                    alert('Database credentials saved! Reloading to apply connection settings.');
-                    window.location.reload();
-                  }}
-                  onClearDbSettings={() => {
-                    localStorage.removeItem('supabase_client_url');
-                    localStorage.removeItem('supabase_client_anon_key');
-                    alert('Cleared credentials! CRM will run in Mock/Demo mode.');
-                    window.location.reload();
-                  }}
                   onProfileUpdate={fetchSession}
                 />
               )}

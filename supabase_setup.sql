@@ -44,30 +44,12 @@ CREATE INDEX IF NOT EXISTS idx_meetings_lead_id ON meetings(lead_id);
 CREATE INDEX IF NOT EXISTS idx_notes_lead_id ON notes(lead_id);
 
 -- 5. Set up Row Level Security (RLS)
--- To keep development simple, we enable public access policies.
--- In production, restrict these to authenticated users or API keys.
+-- All tables deny direct anon/authenticated access.
+-- The Next.js server uses SUPABASE_SERVICE_ROLE_KEY which bypasses RLS.
 
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meetings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
-
--- Leads policies
-CREATE POLICY "Allow public select for leads" ON leads FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for leads" ON leads FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update for leads" ON leads FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete for leads" ON leads FOR DELETE USING (true);
-
--- Meetings policies
-CREATE POLICY "Allow public select for meetings" ON meetings FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for meetings" ON meetings FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update for meetings" ON meetings FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete for meetings" ON meetings FOR DELETE USING (true);
-
--- Notes policies
-CREATE POLICY "Allow public select for notes" ON notes FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for notes" ON notes FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update for notes" ON notes FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete for notes" ON notes FOR DELETE USING (true);
 
 -- 6. Insert Mock Data (Optional, uncomment if you want initial data in your database)
 /*
@@ -117,11 +99,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
 -- 8. Set up Row Level Security (RLS) for users table
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public select for users" ON users FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for users" ON users FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update for users" ON users FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete for users" ON users FOR DELETE USING (true);
-
 -- 9. Create system_settings table
 CREATE TABLE IF NOT EXISTS system_settings (
     key TEXT PRIMARY KEY,
@@ -130,9 +107,4 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 -- Set up Row Level Security (RLS) for system_settings table
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public select for system_settings" ON system_settings FOR SELECT USING (true);
-CREATE POLICY "Allow public insert for system_settings" ON system_settings FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update for system_settings" ON system_settings FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete for system_settings" ON system_settings FOR DELETE USING (true);
 

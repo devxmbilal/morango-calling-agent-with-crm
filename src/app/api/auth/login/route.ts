@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authService } from '@/lib/auth';
 import { signJWT } from '@/lib/jwt';
-
-const JWT_SECRET = process.env.JWT_SECRET as string;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is missing.');
-}
+import { getJwtSecret } from '@/lib/env';
 
 export async function POST(req: Request) {
   try {
@@ -20,20 +16,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
     }
 
-    // Sign JWT Token
     const token = await signJWT(
       { userId: user.id, username: user.username },
-      JWT_SECRET,
-      86400 // 1 day
+      getJwtSecret(),
+      86400
     );
 
-    // Set cookie headers
     const response = NextResponse.json({
       message: 'Login successful',
-      user: { id: user.id, username: user.username }
+      user: { id: user.id, username: user.username },
     }, { status: 200 });
 
-    // Set HTTP-Only Cookie
     response.headers.append(
       'Set-Cookie',
       `morango_auth_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure=${process.env.NODE_ENV === 'production'}`

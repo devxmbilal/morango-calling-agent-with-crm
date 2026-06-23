@@ -35,6 +35,7 @@ In your Vapi Dashboard, you need to create a **Custom Tool** to trigger lead cre
    - **Type:** `Function` (sometimes listed as `webhook` or `Make Webhook Request` in Vapi)
    - **Url:** `https://<YOUR-NGROK-SUBDOMAIN>.ngrok-free.app/api/webhook/vapi` (Use your actual ngrok or production domain URL)
    - **Method:** `POST`
+   - **Headers:** Add a custom header `x-vapi-secret` with the same value as your `VAPI_WEBHOOK_SECRET` environment variable.
 3. In the **Schema** box of the tool, paste **ONLY** the JSON Schema below (do not include outer wrapper objects, as Vapi expects the schema to start directly with `type: "object"`):
 
 ```json
