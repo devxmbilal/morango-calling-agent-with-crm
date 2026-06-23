@@ -126,6 +126,13 @@ export default function Dashboard() {
         }
       }
     }
+
+    // Auto-refresh every 30 seconds to pick up new Vapi leads without manual refresh
+    const pollInterval = setInterval(() => {
+      fetchLeads();
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Filter leads on search query
@@ -314,9 +321,6 @@ export default function Dashboard() {
 
       setLeads((prev) => [fullLead, ...prev]);
       showToast('Lead created successfully!', 'success');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
     } catch (err) {
       console.error(err);
       showToast('Failed to create lead.', 'error');

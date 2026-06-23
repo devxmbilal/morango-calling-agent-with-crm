@@ -1,5 +1,6 @@
 import prisma from './prisma';
 import type { Lead, Meeting, Note } from './db';
+import { isPlaceholderMeetingLink } from './meeting-link';
 
 export const isServerDbConfigured = !!process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '';
 
@@ -142,12 +143,7 @@ export const dbServer = {
       if (setting?.value) activeLink = setting.value;
     }
 
-    if (
-      !activeLink ||
-      activeLink.trim() === '' ||
-      activeLink === 'https://calendly.com/morangoai' ||
-      activeLink === 'https://calendly.com/mornagoai'
-    ) {
+    if (isPlaceholderMeetingLink(activeLink)) {
       throw new Error('No meeting link configured. Please set a meeting link in settings first.');
     }
 

@@ -1,3 +1,5 @@
+import { isPlaceholderMeetingLink } from './meeting-link';
+
 export interface Lead {
   id: string;
   name: string;
@@ -229,11 +231,7 @@ export const dbService = {
           const res = await fetch('/api/settings');
           if (res.ok) {
             const config = await res.json();
-            if (
-              config.meeting_link &&
-              config.meeting_link !== 'https://calendly.com/morangoai' &&
-              config.meeting_link !== 'https://calendly.com/mornagoai'
-            ) {
+            if (config.meeting_link && !isPlaceholderMeetingLink(config.meeting_link)) {
               activeLink = config.meeting_link;
             }
           }
@@ -242,12 +240,7 @@ export const dbService = {
         }
       }
 
-      if (
-        !activeLink ||
-        activeLink.trim() === '' ||
-        activeLink === 'https://calendly.com/morangoai' ||
-        activeLink === 'https://calendly.com/mornagoai'
-      ) {
+      if (isPlaceholderMeetingLink(activeLink)) {
         throw new Error('No meeting link configured. Please set a meeting link in settings first.');
       }
 

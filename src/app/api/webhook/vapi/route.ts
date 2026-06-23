@@ -7,7 +7,8 @@ import { sendConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
-    if (!verifyWebhookSecret(req, 'VAPI_WEBHOOK_SECRET', 'x-vapi-secret')) {
+    // Only enforce secret check if VAPI_WEBHOOK_SECRET is explicitly configured
+    if (process.env.VAPI_WEBHOOK_SECRET && !verifyWebhookSecret(req, 'VAPI_WEBHOOK_SECRET', 'x-vapi-secret')) {
       return NextResponse.json({ error: 'Unauthorized webhook.' }, { status: 401 });
     }
 
@@ -186,7 +187,8 @@ export async function POST(req: Request) {
           : null;
         const adminNotificationEmail = adminSetting?.value || 'no-reply@morangoai.com';
 
-        await sendAdminNotificationEmail({
+        // Admin notification — non-blocking, failure does not affect lead creation
+        sendAdminNotificationEmail({
           to: adminNotificationEmail,
           lead: {
             name,
@@ -196,54 +198,59 @@ export async function POST(req: Request) {
             budget: budget || undefined,
             meetingDate: finalMeetingDate || undefined,
           },
-        });
+        }).catch((err) => console.error('Admin notification email failed (non-fatal):', err));
 
         if (finalMeetingDate) {
-          const calendarEvent = await createCalendarEvent({
-            name,
-            email,
-            service: service || 'AI Agent',
-            budget: budget || undefined,
-            meetingDate: finalMeetingDate,
-          });
-
-          meetingLink = calendarEvent.meetingLink;
-
-          if (isServerDbConfigured) {
-            const existingMeeting = await prisma.meeting.findFirst({
-              where: {
-                lead_id: leadId,
-                status: 'Scheduled',
-              },
+          try {
+            const calendarEvent = await createCalendarEvent({
+              name,
+              email,
+              service: service || 'AI Agent',
+              budget: budget || undefined,
+              meetingDate: finalMeetingDate,
             });
 
-            if (existingMeeting) {
-              await prisma.meeting.update({
-                where: { id: existingMeeting.id },
-                data: {
-                  meeting_date: new Date(finalMeetingDate),
-                  meeting_link: meetingLink,
-                },
-              });
-            } else {
-              await prisma.meeting.create({
-                data: {
+            meetingLink = calendarEvent.meetingLink;
+
+            if (isServerDbConfigured) {
+              const existingMeeting = await prisma.meeting.findFirst({
+                where: {
                   lead_id: leadId,
-                  meeting_date: new Date(finalMeetingDate),
-                  meeting_link: meetingLink,
                   status: 'Scheduled',
                 },
               });
-            }
-          }
 
-          await sendConfirmationEmail({
-            to: email,
-            name,
-            service: service || 'AI Agent',
-            meetingLink,
-            meetingDate: finalMeetingDate,
-          });
+              if (existingMeeting) {
+                await prisma.meeting.update({
+                  where: { id: existingMeeting.id },
+                  data: {
+                    meeting_date: new Date(finalMeetingDate),
+                    meeting_link: meetingLink,
+                  },
+                });
+              } else {
+                await prisma.meeting.create({
+                  data: {
+                    lead_id: leadId,
+                    meeting_date: new Date(finalMeetingDate),
+                    meeting_link: meetingLink,
+                    status: 'Scheduled',
+                  },
+                });
+              }
+            }
+
+            // Confirmation email — non-blocking
+            sendConfirmationEmail({
+              to: email,
+              name,
+              service: service || 'AI Agent',
+              meetingLink,
+              meetingDate: finalMeetingDate,
+            }).catch((err) => console.error('Confirmation email failed (non-fatal):', err));
+          } catch (calendarErr: any) {
+            console.error('Calendar/meeting creation failed (non-fatal, lead still saved):', calendarErr.message);
+          }
         }
 
         return NextResponse.json({

@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { isServerDbConfigured } from './db-server';
 import { dbServer } from './db-server';
+import { isPlaceholderMeetingLink } from './meeting-link';
 import fs from 'fs';
 import path from 'path';
 
@@ -123,7 +124,7 @@ export async function sendConfirmationEmail(args: {
     }
 
     let activeMeetingLink = args.meetingLink;
-    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+    if (isPlaceholderMeetingLink(activeMeetingLink)) {
       try {
         if (isServerDbConfigured) {
           activeMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
@@ -132,7 +133,7 @@ export async function sendConfirmationEmail(args: {
         console.error('Error fetching fallback link for confirmation email:', err);
       }
     }
-    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+    if (isPlaceholderMeetingLink(activeMeetingLink)) {
       throw new Error('No meeting link configured. Please set a meeting link in settings first.');
     }
 
@@ -300,7 +301,7 @@ export async function sendMeetingReminderEmail(args: {
     } catch (e) {}
 
     let activeMeetingLink = args.meetingLink;
-    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+    if (isPlaceholderMeetingLink(activeMeetingLink)) {
       try {
         if (isServerDbConfigured) {
           activeMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
@@ -309,7 +310,7 @@ export async function sendMeetingReminderEmail(args: {
         console.error('Error fetching fallback link for reminder email:', err);
       }
     }
-    if (!activeMeetingLink || activeMeetingLink.trim() === '' || activeMeetingLink === 'https://calendly.com/morangoai' || activeMeetingLink === 'https://calendly.com/mornagoai') {
+    if (isPlaceholderMeetingLink(activeMeetingLink)) {
       throw new Error('No meeting link configured. Please set a meeting link in settings first.');
     }
 

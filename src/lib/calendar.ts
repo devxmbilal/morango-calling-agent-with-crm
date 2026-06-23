@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { isServerDbConfigured } from './db-server';
 import { dbServer } from './db-server';
+import { isPlaceholderMeetingLink } from './meeting-link';
 
 // Extract keys from environment
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
@@ -147,7 +148,7 @@ export async function createCalendarEvent(args: {
 
   if (!calendar) {
     console.log('Google Calendar is not configured or in Demo Mode. Returning fallback meeting link:', fallbackMeetingLink);
-    if (!fallbackMeetingLink || fallbackMeetingLink.trim() === '' || fallbackMeetingLink === 'https://calendly.com/morangoai' || fallbackMeetingLink === 'https://calendly.com/mornagoai') {
+    if (isPlaceholderMeetingLink(fallbackMeetingLink)) {
       throw new Error('No meeting link configured. Please set a meeting link in settings first.');
     }
     return {
@@ -246,7 +247,7 @@ export async function createCalendarEvent(args: {
   const event = attemptResponse.data;
   const meetingLink = event.hangoutLink || fallbackMeetingLink;
 
-  if (!meetingLink || meetingLink.trim() === '' || meetingLink === 'https://calendly.com/morangoai' || meetingLink === 'https://calendly.com/mornagoai') {
+  if (isPlaceholderMeetingLink(meetingLink)) {
     throw new Error('No meeting link configured. Please set a meeting link in settings first.');
   }
 
