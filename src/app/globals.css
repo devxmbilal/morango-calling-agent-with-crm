@@ -276,10 +276,13 @@ input:focus, select:focus, textarea:focus {
     left: -260px !important;
     top: 0 !important;
     z-index: 1000 !important;
+    height: 100dvh !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
     box-shadow: 4px 0 15px rgba(22, 25, 29, 0.1) !important;
     transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
-  
+
   .sidebar-container.mobile-open {
     left: 0 !important;
   }

@@ -73,6 +73,7 @@ export default function SettingsView({
   const [editPassword, setEditPassword] = useState('');
   const [editError, setEditError] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [confirmDeleteUserId, setConfirmDeleteUserId] = useState<string | null>(null);
 
   // User actions helpers
   const handleStartEdit = (user: { id: string; username: string; name?: string }) => {
@@ -88,15 +89,18 @@ export default function SettingsView({
     setEditError('');
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = (userId: string) => {
     if (userId === currentUserId) {
       showToast("You cannot delete your own active user account.", "error");
       return;
     }
-    if (!confirm("Are you sure you want to delete this user account? This will permanently remove their access credentials.")) {
-      return;
-    }
+    setConfirmDeleteUserId(userId);
+  };
 
+  const confirmDeleteUser = async () => {
+    if (!confirmDeleteUserId) return;
+    const userId = confirmDeleteUserId;
+    setConfirmDeleteUserId(null);
     try {
       const res = await fetch('/api/auth/users', {
         method: 'DELETE',
@@ -1082,6 +1086,59 @@ export default function SettingsView({
           }
         }
       `}</style>
+
+      {/* Delete User Confirmation Overlay */}
+      {confirmDeleteUserId && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(22,25,29,0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10001,
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '28px 24px 24px',
+            width: '320px',
+            boxShadow: '0 20px 60px rgba(22,25,29,0.15)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
+          }}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '12px',
+              background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Trash2 size={22} color="#DC2626" />
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#16191D', margin: 0 }}>Delete User</h3>
+            <p style={{ fontSize: '13px', color: '#5A616E', textAlign: 'center', margin: 0 }}>
+              Are you sure you want to delete this user account? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '4px' }}>
+              <button
+                onClick={() => setConfirmDeleteUserId(null)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '10px',
+                  border: '1px solid #EBECEF', background: '#FFFFFF',
+                  color: '#5A616E', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '10px',
+                  border: 'none', background: '#DC2626',
+                  color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

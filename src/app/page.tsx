@@ -305,25 +305,34 @@ export default function Dashboard() {
     leadData: Omit<Lead, 'id' | 'created_at' | 'meetings' | 'notes'>,
     meetingDate?: string
   ) => {
+    let newLead: Lead;
     try {
-      const newLead = await dbService.createLead(leadData);
-      
-      let createdMeeting = null;
-      if (meetingDate) {
-        createdMeeting = await dbService.addMeeting(newLead.id, meetingDate);
-      }
-
-      const fullLead = {
-        ...newLead,
-        meetings: createdMeeting ? [createdMeeting] : [],
-        notes: []
-      };
-
-      setLeads((prev) => [fullLead, ...prev]);
-      showToast('Lead created successfully!', 'success');
+      newLead = await dbService.createLead(leadData);
     } catch (err) {
       console.error(err);
       showToast('Failed to create lead.', 'error');
+      return;
+    }
+
+    let createdMeeting = null;
+    if (meetingDate) {
+      try {
+        createdMeeting = await dbService.addMeeting(newLead.id, meetingDate);
+      } catch (err) {
+        console.error('Failed to save meeting:', err);
+        showToast('Lead created, but meeting could not be saved.', 'error');
+      }
+    }
+
+    const fullLead = {
+      ...newLead,
+      meetings: createdMeeting ? [createdMeeting] : [],
+      notes: []
+    };
+
+    setLeads((prev) => [fullLead, ...prev]);
+    if (!meetingDate || createdMeeting) {
+      showToast('Lead created successfully!', 'success');
     }
   };
 

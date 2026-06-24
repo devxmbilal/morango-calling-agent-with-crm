@@ -279,15 +279,19 @@ export default function Sidebar({
       <style jsx global>{`
         @media (max-width: 768px) {
           .sidebar-bottom-actions {
-            padding: 0 16px !important;
-            margin-top: auto !important;
-            margin-bottom: calc(40px + env(safe-area-inset-bottom)) !important;
+            position: sticky !important;
+            bottom: 0 !important;
+            background: #fff !important;
+            border-top: 1px solid #EBECEF !important;
+            padding: 12px 16px calc(16px + env(safe-area-inset-bottom)) !important;
+            margin: 0 !important;
+            gap: 8px !important;
           }
           .sidebar-bottom-btn {
             padding: 14px 16px !important;
             font-size: 15px !important;
             border-radius: 12px !important;
-            min-height: 48px !important;
+            min-height: 50px !important;
           }
         }
       `}</style>

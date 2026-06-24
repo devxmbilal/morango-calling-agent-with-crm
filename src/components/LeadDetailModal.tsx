@@ -62,6 +62,7 @@ export default function LeadDetailModal({
   const [editedBudget, setEditedBudget] = useState(lead.budget || '');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
 
   const handleSaveDetails = async () => {
     if (!onUpdateLead) return;
@@ -125,14 +126,22 @@ export default function LeadDetailModal({
     }
   };
 
-  const handleDeleteNoteClick = async (noteId: string) => {
+  const handleDeleteNoteClick = (noteId: string) => {
     if (!onDeleteNote) return;
-    if (!confirm('Are you sure you want to delete this note?')) return;
+    setConfirmDeleteNoteId(noteId);
+  };
+
+  const confirmDeleteNote = async () => {
+    if (!onDeleteNote || !confirmDeleteNoteId) return;
+    const noteId = confirmDeleteNoteId;
+    setConfirmDeleteNoteId(null);
     setIsDeletingNoteId(noteId);
     try {
       await onDeleteNote(noteId);
+      showToast('Note deleted.', 'info');
     } catch (err) {
       console.error(err);
+      showToast('Failed to delete note.', 'error');
     } finally {
       setIsDeletingNoteId(null);
     }
@@ -263,10 +272,12 @@ export default function LeadDetailModal({
       justifyContent: 'center',
       zIndex: 1000,
       padding: '24px'
-    }}>
+    }}
+    className="modal-overlay"
+    >
       {/* Modal Container */}
       <div
-        className="glass-panel"
+        className="glass-panel modal-container"
         style={{
           width: '100%',
           maxWidth: '900px',
@@ -282,11 +293,12 @@ export default function LeadDetailModal({
       >
         {/* Modal Header */}
         <div className="modal-header-layout" style={{
-          padding: '24px',
+          padding: '20px 56px 20px 24px',
           borderBottom: '1px solid #EBECEF',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start'
+          alignItems: 'flex-start',
+          position: 'relative'
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
@@ -308,28 +320,6 @@ export default function LeadDetailModal({
               ) : (
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16191D', letterSpacing: '-0.3px' }}>{lead.name}</h2>
               )}
-              <select
-                value={lead.status}
-                onChange={(e) => onStatusChange(e.target.value as Lead['status'])}
-                style={{
-                  width: 'auto',
-                  padding: '6px 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  borderRadius: '6px',
-                  backgroundColor: '#FAFBFC',
-                  borderColor: '#EBECEF',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="New Lead">New Lead</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Proposal Sent">Proposal Sent</option>
-                <option value="Negotiation">Negotiation</option>
-                <option value="Won">Won</option>
-                <option value="Lost">Lost</option>
-              </select>
             </div>
             {isEditingDetails ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
@@ -363,7 +353,29 @@ export default function LeadDetailModal({
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={lead.status}
+              onChange={(e) => onStatusChange(e.target.value as Lead['status'])}
+              style={{
+                width: 'auto',
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                borderRadius: '6px',
+                backgroundColor: '#FAFBFC',
+                borderColor: '#EBECEF',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="New Lead">New Lead</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Proposal Sent">Proposal Sent</option>
+              <option value="Negotiation">Negotiation</option>
+              <option value="Won">Won</option>
+              <option value="Lost">Lost</option>
+            </select>
             {isEditingDetails ? (
               <>
                 <button
@@ -417,6 +429,9 @@ export default function LeadDetailModal({
             <button
               onClick={onClose}
               style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
                 background: '#FAFBFC',
                 border: '1px solid #EBECEF',
                 color: '#9AA1AD',
@@ -427,7 +442,9 @@ export default function LeadDetailModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'var(--transition-smooth)'
+                transition: 'var(--transition-smooth)',
+                flexShrink: 0,
+                zIndex: 1
               }}
               onMouseEnter={(e) => e.currentTarget.style.color = '#16191D'}
               onMouseLeave={(e) => e.currentTarget.style.color = '#9AA1AD'}
@@ -647,7 +664,7 @@ export default function LeadDetailModal({
             </div>
 
             {/* Tab Contents */}
-            <div style={{ flexGrow: 1, overflowY: 'auto', padding: '24px', minHeight: '420px' }}>
+            <div className="modal-tab-content" style={{ flexGrow: 1, overflowY: 'auto', padding: '24px', minHeight: '420px' }}>
 
               {/* Transcript Tab */}
               {activeTab === 'transcript' && (
@@ -786,7 +803,7 @@ export default function LeadDetailModal({
                   </form>
 
                   {/* Notes List */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '340px', paddingRight: '4px' }}>
                     {(!lead.notes || lead.notes.length === 0) ? (
                       <div style={{ textAlign: 'center', color: '#9AA1AD', padding: '24px 0' }}>
                         No notes yet. Add the first internal note above.
@@ -1198,9 +1215,21 @@ export default function LeadDetailModal({
           flex-shrink: 0;
         }
         @media (max-width: 600px) {
+          .modal-overlay {
+            padding: 0 !important;
+            align-items: flex-end !important;
+          }
+          .modal-container {
+            max-width: 100% !important;
+            max-height: 96dvh !important;
+            max-height: 96vh !important;
+            border-radius: 20px 20px 0 0 !important;
+            width: 100% !important;
+          }
           .modal-header-layout {
             flex-direction: column !important;
-            gap: 12px !important;
+            gap: 10px !important;
+            padding: 16px !important;
           }
           .modal-body-layout {
             flex-direction: column !important;
@@ -1209,7 +1238,12 @@ export default function LeadDetailModal({
             width: 100% !important;
             border-right: none !important;
             border-bottom: 1px solid #EBECEF;
-            max-height: 220px;
+            max-height: 180px;
+            overflow-y: auto;
+          }
+          .modal-tab-content {
+            min-height: 0 !important;
+            padding: 16px !important;
           }
           .modal-tab {
             padding: 12px 6px;
@@ -1310,6 +1344,67 @@ export default function LeadDetailModal({
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'opacity 0.2s'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note Delete Confirmation */}
+      {confirmDeleteNoteId && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(22, 25, 29, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10001,
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '320px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+            textAlign: 'center',
+            border: '1px solid #ECEDEF',
+            margin: '0 16px'
+          }}>
+            <div style={{
+              width: '44px', height: '44px', borderRadius: '50%',
+              backgroundColor: '#FDEBE9', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px'
+            }}>
+              <Trash size={20} color="#E8483D" />
+            </div>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: 800, color: '#16191D' }}>Delete Note</h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#5A616E', lineHeight: 1.5 }}>
+              Are you sure you want to delete this note? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteNoteId(null)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: '10px',
+                  border: '1px solid #EBECEF', background: '#FFFFFF',
+                  color: '#5A616E', fontSize: '13px', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteNote}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: '10px',
+                  border: 'none', background: '#E8483D',
+                  color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer'
                 }}
               >
                 Delete
