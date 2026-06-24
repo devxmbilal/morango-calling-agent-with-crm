@@ -88,10 +88,10 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
   };
 
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ animation: 'fadeUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '32px' }}>
       
       {/* STAT CARDS */}
-      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div className="stats-grid overview-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
         
         {/* Total Calls */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px' }}>
@@ -140,7 +140,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
       </div>
 
       {/* CHART & PIPELINE SNAPSHOT */}
-      <div className="overview-split-grid" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px' }}>
+      <div className="overview-split-grid" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px', gridTemplateRows: 'auto' }}>
         
         {/* Weekly Calls Bar Chart */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '20px' }}>
@@ -224,18 +224,19 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
       </div>
 
       {/* RECENT LEADS FROM CALLS */}
-      <div className="table-container-responsive" style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '6px 4px 4px' }}>
+      <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 10px' }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#16191D' }}>Recent leads from calls</h3>
-          <button 
+          <button
             onClick={() => onNavigateToTab('leads')}
             style={{ fontSize: '12.5px', fontWeight: 700, color: '#E8483D', background: 'none', border: 'none', cursor: 'pointer' }}
           >
             View all &rarr;
           </button>
         </div>
-        
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+
+        {/* Desktop Table */}
+        <table className="overview-recent-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', color: '#9AA1AD', fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               <th style={{ padding: '10px 18px' }}>Lead</th>
@@ -247,40 +248,19 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
           </thead>
           <tbody style={{ fontSize: '13px' }}>
             {recentLeads.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#9AA1AD' }}>No leads registered yet.</td>
-              </tr>
+              <tr><td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#9AA1AD' }}>No leads registered yet.</td></tr>
             ) : (
               recentLeads.map((lead) => {
                 const statusStyles = getStatusColor(lead.status);
                 const initials = getInitials(lead.name);
-                const meetingDate = lead.meetings && lead.meetings.length > 0 
+                const meetingDate = lead.meetings && lead.meetings.length > 0
                   ? new Date(lead.meetings[0].meeting_date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                   : '—';
-
                 return (
-                  <tr 
-                    key={lead.id} 
-                    onClick={() => onSelectLead(lead)}
-                    style={{ borderTop: '1px solid #F1F2F4', cursor: 'pointer' }}
-                    className="hover-row"
-                  >
+                  <tr key={lead.id} onClick={() => onSelectLead(lead)} style={{ borderTop: '1px solid #F1F2F4', cursor: 'pointer' }} className="hover-row">
                     <td style={{ padding: '13px 18px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ 
-                          width: '32px', 
-                          height: '32px', 
-                          borderRadius: '50%', 
-                          background: statusStyles.bg, 
-                          color: statusStyles.fg, 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center', 
-                          fontWeight: 700, 
-                          fontSize: '12px' 
-                        }}>
-                          {initials}
-                        </span>
+                        <span style={{ width: '32px', height: '32px', borderRadius: '50%', background: statusStyles.bg, color: statusStyles.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>{initials}</span>
                         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
                           <span style={{ fontWeight: 700, color: '#16191D' }}>{lead.name}</span>
                           <span style={{ fontSize: '11.5px', color: '#9AA1AD' }}>{lead.email}</span>
@@ -291,16 +271,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
                     <td style={{ padding: '13px 18px', color: '#5A616E' }}>{lead.service}</td>
                     <td style={{ padding: '13px 18px', color: '#5A616E' }}>{meetingDate}</td>
                     <td style={{ padding: '13px 18px' }}>
-                      <span style={{ 
-                        fontSize: '11.5px', 
-                        fontWeight: 700, 
-                        color: statusStyles.fg, 
-                        background: statusStyles.bg, 
-                        padding: '4px 10px', 
-                        borderRadius: '8px' 
-                      }}>
-                        {lead.status}
-                      </span>
+                      <span style={{ fontSize: '11.5px', fontWeight: 700, color: statusStyles.fg, background: statusStyles.bg, padding: '4px 10px', borderRadius: '8px' }}>{lead.status}</span>
                     </td>
                   </tr>
                 );
@@ -308,11 +279,52 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
             )}
           </tbody>
         </table>
+
+        {/* Mobile Cards */}
+        <div className="overview-recent-cards">
+          {recentLeads.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#9AA1AD', fontSize: '13px' }}>No leads registered yet.</div>
+          ) : (
+            recentLeads.map((lead) => {
+              const statusStyles = getStatusColor(lead.status);
+              const initials = getInitials(lead.name);
+              const meetingDate = lead.meetings && lead.meetings.length > 0
+                ? new Date(lead.meetings[0].meeting_date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : null;
+              return (
+                <div
+                  key={lead.id}
+                  onClick={() => onSelectLead(lead)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderTop: '1px solid #F1F2F4', cursor: 'pointer' }}
+                  className="hover-row"
+                >
+                  <span style={{ width: '36px', height: '36px', borderRadius: '50%', background: statusStyles.bg, color: statusStyles.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>{initials}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: '#16191D', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.name}</div>
+                    <div style={{ fontSize: '11.5px', color: '#9AA1AD', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.service}{lead.company ? ` · ${lead.company}` : ''}</div>
+                    {meetingDate && <div style={{ fontSize: '11px', color: '#2563EB', fontWeight: 600, marginTop: '2px' }}>📅 {meetingDate}</div>}
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: statusStyles.fg, background: statusStyles.bg, padding: '3px 8px', borderRadius: '7px', flexShrink: 0 }}>{lead.status}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       <style jsx global>{`
-        .hover-row:hover {
-          background-color: #FAFBFC;
+        .hover-row:hover { background-color: #FAFBFC; }
+        .overview-recent-cards { display: none; }
+
+        @media (max-width: 600px) {
+          .overview-stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .overview-split-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .overview-recent-table { display: none; }
+          .overview-recent-cards { display: block; }
         }
       `}</style>
     </div>

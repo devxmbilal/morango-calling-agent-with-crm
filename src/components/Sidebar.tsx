@@ -199,20 +199,21 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Settings Connection Config Link */}
-      <div style={{ padding: '0 24px', marginTop: 'auto', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Settings & Log Out */}
+      <div className="sidebar-bottom-actions" style={{ padding: '0 16px', marginTop: 'auto', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           onClick={() => onSelectTab('settings')}
+          className="sidebar-bottom-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '6px 10px',
-            borderRadius: '8px',
+            padding: '10px 14px',
+            borderRadius: '10px',
             border: '1px solid #EBECEF',
             background: activeTab === 'settings' ? '#FDEBE9' : '#FFFFFF',
             color: activeTab === 'settings' ? '#E8483D' : '#5A616E',
-            fontSize: '11.5px',
+            fontSize: '13px',
             fontWeight: 600,
             cursor: 'pointer',
             width: '100%',
@@ -233,7 +234,7 @@ export default function Sidebar({
             }
           }}
         >
-          <Settings size={13} color={activeTab === 'settings' ? '#E8483D' : '#9AA1AD'} />
+          <Settings size={15} color={activeTab === 'settings' ? '#E8483D' : '#9AA1AD'} />
           Settings
         </button>
 
@@ -246,16 +247,17 @@ export default function Sidebar({
               console.error('Logout error:', err);
             }
           }}
+          className="sidebar-bottom-btn"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '6px 10px',
-            borderRadius: '8px',
+            padding: '10px 14px',
+            borderRadius: '10px',
             border: '1px solid #FEE2E2',
             background: '#FFF5F5',
             color: '#DC2626',
-            fontSize: '11.5px',
+            fontSize: '13px',
             fontWeight: 600,
             cursor: 'pointer',
             width: '100%',
@@ -269,10 +271,26 @@ export default function Sidebar({
             e.currentTarget.style.background = '#FFF5F5';
           }}
         >
-          <LogOut size={13} color="#DC2626" />
+          <LogOut size={15} color="#DC2626" />
           Log Out
         </button>
       </div>
+
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .sidebar-bottom-actions {
+            padding: 0 16px !important;
+            margin-top: auto !important;
+            margin-bottom: calc(40px + env(safe-area-inset-bottom)) !important;
+          }
+          .sidebar-bottom-btn {
+            padding: 14px 16px !important;
+            font-size: 15px !important;
+            border-radius: 12px !important;
+            min-height: 48px !important;
+          }
+        }
+      `}</style>
     </aside>
   );
 }

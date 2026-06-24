@@ -27,7 +27,8 @@ export async function POST(req: Request) {
       user: { id: user.id, username: user.username },
     }, { status: 200 });
 
-    const securePart = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    const proto = req.headers.get('x-forwarded-proto') || new URL(req.url).protocol.replace(':', '');
+    const securePart = proto === 'https' ? '; Secure' : '';
     response.headers.append(
       'Set-Cookie',
       `morango_auth_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${securePart}`

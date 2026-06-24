@@ -155,11 +155,11 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
           <thead>
             <tr style={{ textAlign: 'left', color: '#9AA1AD', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px', background: '#FAFBFC' }}>
               <th style={{ padding: '13px 18px' }}>Lead</th>
-              <th style={{ padding: '13px 18px' }}>Phone</th>
-              <th style={{ padding: '13px 18px' }}>Company</th>
-              <th style={{ padding: '13px 18px' }}>Interest</th>
-              <th style={{ padding: '13px 18px' }}>Meeting</th>
-              <th style={{ padding: '13px 18px' }}>Call Log</th>
+              <th className="col-hide-sm" style={{ padding: '13px 18px' }}>Phone</th>
+              <th className="col-hide-sm" style={{ padding: '13px 18px' }}>Company</th>
+              <th className="col-hide-md" style={{ padding: '13px 18px' }}>Interest</th>
+              <th className="col-hide-md" style={{ padding: '13px 18px' }}>Meeting</th>
+              <th className="col-hide-md" style={{ padding: '13px 18px' }}>Call Log</th>
               <th style={{ padding: '13px 18px' }}>Status</th>
             </tr>
           </thead>
@@ -177,7 +177,6 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
                 const meetingStr = lead.meetings && lead.meetings.length > 0
                   ? new Date(lead.meetings[0].meeting_date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                   : '—';
-                const callDuration = '—';
 
                 return (
                   <tr
@@ -187,59 +186,52 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
                     className="hover-row"
                   >
                     {/* Lead */}
-                    <td style={{ padding: '14px 18px' }}>
+                    <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '50%',
-                          background: statusStyles.bg,
-                          color: statusStyles.fg,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: '12px'
+                          width: '34px', height: '34px', borderRadius: '50%',
+                          background: statusStyles.bg, color: statusStyles.fg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 700, fontSize: '12px', flexShrink: 0
                         }}>
                           {initials}
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-                          <span style={{ fontWeight: 700, color: '#16191D' }}>{lead.name}</span>
-                          <span style={{ fontSize: '11.5px', color: '#9AA1AD' }}>{lead.email}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3, minWidth: 0 }}>
+                          <span style={{ fontWeight: 700, color: '#16191D', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{lead.name}</span>
+                          <span style={{ fontSize: '11px', color: '#9AA1AD', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{lead.email}</span>
+                          {/* Mobile: show phone + service inline under name */}
+                          <span className="mobile-only-meta" style={{ fontSize: '11px', color: '#5A616E', marginTop: '2px' }}>
+                            {lead.phone || ''}{lead.phone && lead.service ? ' · ' : ''}{lead.service}
+                          </span>
                         </div>
                       </div>
                     </td>
 
                     {/* Phone */}
-                    <td style={{ padding: '14px 18px', color: '#5A616E' }}>{lead.phone || 'N/A'}</td>
+                    <td className="col-hide-sm" style={{ padding: '12px 14px', color: '#5A616E' }}>{lead.phone || 'N/A'}</td>
 
                     {/* Company */}
-                    <td style={{ padding: '14px 18px', color: '#5A616E', fontWeight: 600 }}>{lead.company || '—'}</td>
+                    <td className="col-hide-sm" style={{ padding: '12px 14px', color: '#5A616E', fontWeight: 600 }}>{lead.company || '—'}</td>
 
                     {/* Interest */}
-                    <td style={{ padding: '14px 18px' }}>
-                      <span className={`tag ${getServiceTagClass(lead.service)}`}>
-                        {lead.service}
-                      </span>
+                    <td className="col-hide-md" style={{ padding: '12px 14px' }}>
+                      <span className={`tag ${getServiceTagClass(lead.service)}`}>{lead.service}</span>
                     </td>
 
                     {/* Meeting */}
-                    <td style={{ padding: '14px 18px', color: lead.meetings && lead.meetings.length > 0 ? '#2563EB' : '#5A616E', fontWeight: lead.meetings && lead.meetings.length > 0 ? 600 : 500 }}>
+                    <td className="col-hide-md" style={{ padding: '12px 14px', color: lead.meetings && lead.meetings.length > 0 ? '#2563EB' : '#5A616E', fontWeight: lead.meetings && lead.meetings.length > 0 ? 600 : 500 }}>
                       {meetingStr}
                     </td>
 
-                    {/* Call */}
-                    <td style={{ padding: '14px 18px', color: '#5A616E', fontWeight: 600 }}>{callDuration}</td>
+                    {/* Call Log */}
+                    <td className="col-hide-md" style={{ padding: '12px 14px', color: '#5A616E', fontWeight: 600 }}>—</td>
 
                     {/* Status */}
-                    <td style={{ padding: '14px 18px' }}>
+                    <td style={{ padding: '12px 14px' }}>
                       <span style={{
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        color: statusStyles.fg,
-                        background: statusStyles.bg,
-                        padding: '4px 10px',
-                        borderRadius: '8px'
+                        fontSize: '11px', fontWeight: 700,
+                        color: statusStyles.fg, background: statusStyles.bg,
+                        padding: '4px 8px', borderRadius: '8px', whiteSpace: 'nowrap'
                       }}>
                         {lead.status}
                       </span>
@@ -253,8 +245,28 @@ export default function LeadsView({ leads, onSelectLead, onAddLeadClick }: Leads
       </div>
 
       <style jsx global>{`
-        .hover-row:hover {
-          background-color: #FAFBFC;
+        .hover-row:hover { background-color: #FAFBFC; }
+        .mobile-only-meta { display: none; }
+
+        @media (max-width: 768px) {
+          .col-hide-md { display: none; }
+        }
+        @media (max-width: 520px) {
+          .col-hide-sm { display: none; }
+          .mobile-only-meta { display: block; }
+          .leads-toolbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .leads-toolbar-actions {
+            flex-direction: column !important;
+          }
+          .leads-toolbar-actions input {
+            width: 100% !important;
+          }
+          .leads-toolbar-actions > div {
+            width: 100% !important;
+          }
         }
       `}</style>
     </div>

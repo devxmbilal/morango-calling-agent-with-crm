@@ -98,9 +98,6 @@ export default function LeadDetailModal({
       await onAddNote(newNote);
       setNewNote('');
       showToast('Note added successfully!', 'success');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
     } catch (err) {
       console.error(err);
       showToast('Failed to add note.', 'error');
@@ -214,9 +211,6 @@ export default function LeadDetailModal({
 
       setMeetingDate('');
       setMeetingLink('');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
     } catch (err: any) {
       console.error(err);
       showToast(err.message || 'Failed to schedule meeting.', 'error');
@@ -626,66 +620,29 @@ export default function LeadDetailModal({
             overflow: 'hidden'
           }}>
             {/* Tabs Selector */}
-            <div style={{
-              display: 'flex',
-              borderBottom: '1px solid #EBECEF',
-              backgroundColor: '#FAFBFC'
-            }}>
+            <div className="modal-tab-bar">
               <button
                 onClick={() => setActiveTab('transcript')}
-                style={{
-                  padding: '16px 24px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: activeTab === 'transcript' ? '2px solid #E8483D' : '2px solid transparent',
-                  color: activeTab === 'transcript' ? '#E8483D' : '#5A616E',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)'
-                }}
+                className={`modal-tab ${activeTab === 'transcript' ? 'modal-tab-active' : ''}`}
               >
-                Vapi Transcript
+                <span className="tab-icon-hide"><MessageSquare size={14} /></span>
+                <span>Transcript</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('notes')}
-                style={{
-                  padding: '16px 24px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: activeTab === 'notes' ? '2px solid #E8483D' : '2px solid transparent',
-                  color: activeTab === 'notes' ? '#E8483D' : '#5A616E',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                className={`modal-tab ${activeTab === 'notes' ? 'modal-tab-active' : ''}`}
               >
-                <MessageSquare size={14} /> Notes ({lead.notes?.length || 0})
+                <MessageSquare size={14} />
+                <span>Notes ({lead.notes?.length || 0})</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('meetings')}
-                style={{
-                  padding: '16px 24px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderBottom: activeTab === 'meetings' ? '2px solid #E8483D' : '2px solid transparent',
-                  color: activeTab === 'meetings' ? '#E8483D' : '#5A616E',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-smooth)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+                className={`modal-tab ${activeTab === 'meetings' ? 'modal-tab-active' : ''}`}
               >
-                <Calendar size={14} /> Meetings ({lead.meetings?.length || 0})
+                <Calendar size={14} />
+                <span>Meetings ({lead.meetings?.length || 0})</span>
               </button>
             </div>
 
@@ -809,13 +766,14 @@ export default function LeadDetailModal({
               {activeTab === 'notes' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Add Note Form */}
-                  <form onSubmit={handleNoteSubmit} style={{ display: 'flex', gap: '10px' }}>
+                  <form onSubmit={handleNoteSubmit} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     <input
                       type="text"
                       placeholder="Add an internal follow-up note..."
                       value={newNote}
                       onChange={(e) => setNewNote(e.target.value)}
                       disabled={isSubmittingNote}
+                      style={{ flex: 1, minWidth: '180px' }}
                     />
                     <button
                       type="submit"
@@ -974,8 +932,8 @@ export default function LeadDetailModal({
                       Schedule New Meeting
                     </h4>
                     <form onSubmit={handleMeetingSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: 1 }}>
+                      <div className="meeting-form-row">
+                        <div style={{ flex: 1, minWidth: '180px' }}>
                           <label style={{ fontSize: '0.7rem', color: '#5A616E', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
                             Meeting Date & Time
                           </label>
@@ -986,7 +944,7 @@ export default function LeadDetailModal({
                             required
                           />
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, minWidth: '180px' }}>
                           <label style={{ fontSize: '0.7rem', color: '#5A616E', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
                             Google Meet / Calendly Link
                           </label>
@@ -998,23 +956,23 @@ export default function LeadDetailModal({
                           />
                         </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                      <div className="meeting-form-bottom">
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#5A616E', cursor: 'pointer' }}>
                           <input
                             type="checkbox"
                             checked={sendEmailOnSchedule}
                             onChange={(e) => setSendEmailOnSchedule(e.target.checked)}
-                            style={{ width: 'auto', cursor: 'pointer' }}
+                            style={{ width: 'auto', cursor: 'pointer', flexShrink: 0 }}
                           />
                           Send Confirmation Email to Lead
                         </label>
                         <button
                           type="submit"
-                          className="btn btn-primary"
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          className="btn btn-primary meeting-schedule-btn"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                           disabled={isSubmittingMeeting}
                         >
-                          <Plus size={16} /> Schedule
+                          <Plus size={16} /> {isSubmittingMeeting ? 'Scheduling...' : 'Schedule'}
                         </button>
                       </div>
                     </form>
@@ -1192,6 +1150,87 @@ export default function LeadDetailModal({
           </div>
         ))}
       </div>
+
+      <style jsx global>{`
+        .modal-tab-bar {
+          display: flex;
+          border-bottom: 1px solid #EBECEF;
+          background-color: #FAFBFC;
+        }
+        .modal-tab {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 14px 12px;
+          background: transparent;
+          border: none;
+          border-bottom: 2px solid transparent;
+          color: #5A616E;
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: color 0.2s;
+          white-space: nowrap;
+        }
+        .modal-tab-active {
+          border-bottom: 2px solid #E8483D;
+          color: #E8483D;
+        }
+        .tab-icon-hide {
+          display: none;
+        }
+        .meeting-form-row {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .meeting-form-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 4px;
+          gap: 10px;
+        }
+        .meeting-schedule-btn {
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        @media (max-width: 600px) {
+          .modal-header-layout {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          .modal-body-layout {
+            flex-direction: column !important;
+          }
+          .modal-side-panel {
+            width: 100% !important;
+            border-right: none !important;
+            border-bottom: 1px solid #EBECEF;
+            max-height: 220px;
+          }
+          .modal-tab {
+            padding: 12px 6px;
+            font-size: 0.75rem;
+            gap: 4px;
+          }
+          .meeting-form-row {
+            flex-direction: column;
+          }
+          .meeting-form-bottom {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+          .meeting-schedule-btn {
+            width: 100%;
+            padding: 12px 0 !important;
+            font-size: 14px !important;
+          }
+        }
+      `}</style>
 
       {/* Custom Delete Confirmation Overlay */}
       {showDeleteConfirm && (
