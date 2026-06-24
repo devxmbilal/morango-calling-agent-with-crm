@@ -134,8 +134,19 @@ export async function sendConfirmationEmail(args: {
       }
     }
     if (isPlaceholderMeetingLink(activeMeetingLink)) {
-      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+      activeMeetingLink = '';
     }
+
+    const meetingLinkSection = activeMeetingLink
+      ? `<div style="background-color: #FAFBFC; border: 1px solid #F1F2F4; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13.5px; color: #9AA1AD; font-weight: 600; text-transform: uppercase;">Meeting Link</p>
+            <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700;">
+              <a href="${activeMeetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Join Consultation Meeting</a>
+            </p>
+          </div>`
+      : `<div style="background-color: #FEF3C7; border: 1px solid #FDE68A; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+            <p style="margin: 0; font-size: 13.5px; color: #92400E; font-weight: 600;">Our team will send you the meeting link shortly via a reply to this email.</p>
+          </div>`;
 
     const mailOptions = {
       from: `"MorangoAI Sales Team" <${smtp.from}>`,
@@ -147,7 +158,7 @@ export async function sendConfirmationEmail(args: {
           <p style="color: #5A616E; font-size: 14.5px; line-height: 1.6; margin-bottom: 20px;">
             Your MorangoAI consultation call for <strong>${args.service}</strong> service has been successfully scheduled.
           </p>
-          
+
           <div style="background-color: #FAFBFC; border: 1px solid #F1F2F4; border-radius: 12px; padding: 18px; margin-bottom: 16px;">
             <p style="margin: 0; font-size: 13.5px; color: #9AA1AD; font-weight: 600; text-transform: uppercase;">Scheduled Time</p>
             <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #16191D;">
@@ -155,12 +166,7 @@ export async function sendConfirmationEmail(args: {
             </p>
           </div>
 
-          <div style="background-color: #FAFBFC; border: 1px solid #F1F2F4; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
-            <p style="margin: 0; font-size: 13.5px; color: #9AA1AD; font-weight: 600; text-transform: uppercase;">Google Meet Link</p>
-            <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700;">
-              <a href="${activeMeetingLink}" target="_blank" style="color: #E8483D; text-decoration: none;">Join Google Meet Consultation</a>
-            </p>
-          </div>
+          ${meetingLinkSection}
           
           <p style="color: #5A616E; font-size: 14.5px; line-height: 1.6; margin-bottom: 24px;">
             If you need to change the meeting date or cancel, please reply directly to this email. We look forward to speaking with you!
@@ -311,7 +317,7 @@ export async function sendMeetingReminderEmail(args: {
       }
     }
     if (isPlaceholderMeetingLink(activeMeetingLink)) {
-      throw new Error('No meeting link configured. Please set a meeting link in settings first.');
+      activeMeetingLink = '';
     }
 
     const mailOptions = {

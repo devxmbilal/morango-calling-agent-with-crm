@@ -169,11 +169,11 @@ export async function createCalendarEvent(args: {
         description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
         start: {
           dateTime: eventDate.toISOString(),
-          timeZone: 'UTC',
+          timeZone: 'Asia/Karachi',
         },
         end: {
           dateTime: endEventDate.toISOString(),
-          timeZone: 'UTC',
+          timeZone: 'Asia/Karachi',
         },
         attendees: [{ email: args.email }],
         conferenceData: {
@@ -198,11 +198,11 @@ export async function createCalendarEvent(args: {
           description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
           start: {
             dateTime: eventDate.toISOString(),
-            timeZone: 'UTC',
+            timeZone: 'Asia/Karachi',
           },
           end: {
             dateTime: endEventDate.toISOString(),
-            timeZone: 'UTC',
+            timeZone: 'Asia/Karachi',
           },
           conferenceData: {
             createRequest: {
@@ -225,11 +225,11 @@ export async function createCalendarEvent(args: {
             description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
             start: {
               dateTime: eventDate.toISOString(),
-              timeZone: 'UTC',
+              timeZone: 'Asia/Karachi',
             },
             end: {
               dateTime: endEventDate.toISOString(),
-              timeZone: 'UTC',
+              timeZone: 'Asia/Karachi',
           },
         },
       });
@@ -245,11 +245,8 @@ export async function createCalendarEvent(args: {
   }
 
   const event = attemptResponse.data;
-  const meetingLink = event.hangoutLink || fallbackMeetingLink;
-
-  if (isPlaceholderMeetingLink(meetingLink)) {
-    throw new Error('No meeting link configured. Please set a meeting link in settings first.');
-  }
+  // Google Meet link from calendar event, or fall back to Calendly/custom link from settings
+  const meetingLink = event.hangoutLink || (isPlaceholderMeetingLink(fallbackMeetingLink) ? '' : fallbackMeetingLink);
 
   return {
     meetingLink,

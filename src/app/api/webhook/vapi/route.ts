@@ -63,7 +63,12 @@ export async function POST(req: Request) {
         let finalMeetingDate = meeting_date;
         if (meeting_date) {
           try {
-            const parsedDate = new Date(meeting_date);
+            // If no timezone info in the string, treat as PKT (UTC+5)
+            const hasTimezone = meeting_date.endsWith('Z') ||
+              meeting_date.includes('+') ||
+              meeting_date.toLowerCase().includes('utc');
+            const dateStr = hasTimezone ? meeting_date : meeting_date + '+05:00';
+            const parsedDate = new Date(dateStr);
             if (!isNaN(parsedDate.getTime())) {
               const currentDate = new Date();
               if (parsedDate.getFullYear() < currentDate.getFullYear()) {
@@ -201,6 +206,7 @@ export async function POST(req: Request) {
         }).catch((err) => console.error('Admin notification email failed (non-fatal):', err));
 
         if (finalMeetingDate) {
+          // Step 1: Try to create Google Calendar event (non-blocking on failure)
           try {
             const calendarEvent = await createCalendarEvent({
               name,
@@ -209,23 +215,23 @@ export async function POST(req: Request) {
               budget: budget || undefined,
               meetingDate: finalMeetingDate,
             });
+            meetingLink = calendarEvent.meetingLink || '';
+          } catch (calendarErr: any) {
+            console.error('Google Calendar event creation failed (non-fatal):', calendarErr.message);
+          }
 
-            meetingLink = calendarEvent.meetingLink;
-
-            if (isServerDbConfigured) {
+          // Step 2: Always save meeting to DB regardless of calendar success
+          if (isServerDbConfigured) {
+            try {
               const existingMeeting = await prisma.meeting.findFirst({
-                where: {
-                  lead_id: leadId,
-                  status: 'Scheduled',
-                },
+                where: { lead_id: leadId, status: 'Scheduled' },
               });
-
               if (existingMeeting) {
                 await prisma.meeting.update({
                   where: { id: existingMeeting.id },
                   data: {
                     meeting_date: new Date(finalMeetingDate),
-                    meeting_link: meetingLink,
+                    meeting_link: meetingLink || null,
                   },
                 });
               } else {
@@ -233,24 +239,24 @@ export async function POST(req: Request) {
                   data: {
                     lead_id: leadId,
                     meeting_date: new Date(finalMeetingDate),
-                    meeting_link: meetingLink,
+                    meeting_link: meetingLink || null,
                     status: 'Scheduled',
                   },
                 });
               }
+            } catch (dbErr: any) {
+              console.error('Meeting DB save failed (non-fatal):', dbErr.message);
             }
-
-            // Confirmation email — non-blocking
-            sendConfirmationEmail({
-              to: email,
-              name,
-              service: service || 'AI Agent',
-              meetingLink,
-              meetingDate: finalMeetingDate,
-            }).catch((err) => console.error('Confirmation email failed (non-fatal):', err));
-          } catch (calendarErr: any) {
-            console.error('Calendar/meeting creation failed (non-fatal, lead still saved):', calendarErr.message);
           }
+
+          // Step 3: Always send confirmation email regardless of calendar/link status
+          sendConfirmationEmail({
+            to: email,
+            name,
+            service: service || 'AI Agent',
+            meetingLink,
+            meetingDate: finalMeetingDate,
+          }).catch((err) => console.error('Confirmation email failed (non-fatal):', err));
         }
 
         return NextResponse.json({
