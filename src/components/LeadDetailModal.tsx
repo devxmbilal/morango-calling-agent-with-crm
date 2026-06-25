@@ -234,22 +234,25 @@ export default function LeadDetailModal({
 
   const parseTranscript = (text?: string) => {
     if (!text) return [];
-    return text.split('\n').map((line, idx) => {
-      const isAgent = line.startsWith('Agent:');
-      const isClient = line.startsWith('Client:');
-      let speaker = 'System';
-      let content = line;
+    return text.split('\n')
+      .filter(line => line.trim() !== '')
+      .map((line, idx) => {
+        const isAgent = /^(AI|Agent|Assistant|Bot)\s*:/i.test(line);
+        const isClient = /^(User|Client|Human|Caller)\s*:/i.test(line);
+        let speaker = 'System';
+        let content = line;
 
-      if (isAgent) {
-        speaker = 'Agent';
-        content = line.replace('Agent:', '').trim();
-      } else if (isClient) {
-        speaker = 'Client';
-        content = line.replace('Client:', '').trim();
-      }
+        if (isAgent) {
+          speaker = 'Agent';
+          content = line.replace(/^(AI|Agent|Assistant|Bot)\s*:\s*/i, '').trim();
+        } else if (isClient) {
+          speaker = 'Client';
+          content = line.replace(/^(User|Client|Human|Caller)\s*:\s*/i, '').trim();
+        }
 
-      return { id: idx, speaker, content };
-    });
+        return { id: idx, speaker, content };
+      })
+      .filter(line => line.content !== '');
   };
 
   const transcriptLines = parseTranscript(lead.transcript);
@@ -525,7 +528,7 @@ export default function LeadDetailModal({
                       }}
                     />
                   ) : (
-                    <a href={`mailto:${lead.email}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', wordBreak: 'break-all', display: 'block', maxWidth: '210px' }}>
+                    <a href={`mailto:${lead.email}`} style={{ fontSize: '0.85rem', color: '#16191D', fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere', wordBreak: 'break-word', display: 'block' }}>
                       {lead.email || 'N/A'}
                     </a>
                   )}
@@ -735,6 +738,8 @@ export default function LeadDetailModal({
                       ) : (
                         transcriptLines.map((line) => {
                           const isAgent = line.speaker === 'Agent';
+                          const isSystem = line.speaker === 'System';
+                          if (isSystem) return null;
                           return (
                             <div
                               key={line.id}
@@ -762,7 +767,7 @@ export default function LeadDetailModal({
                                   display: 'block',
                                   marginBottom: '1px'
                                 }}>
-                                  {isAgent ? '🤖 Alexa (Morango AI)' : `👤 ${lead.name || 'Client'}`}
+                                  {isAgent ? '🤖 Morango AI' : `👤 ${lead.name || 'Client'}`}
                                 </span>
                                 <p style={{ margin: 0, fontSize: '0.83rem', color: '#111827', lineHeight: '1.45', fontWeight: 500, wordBreak: 'break-word' }}>
                                   {line.content}
