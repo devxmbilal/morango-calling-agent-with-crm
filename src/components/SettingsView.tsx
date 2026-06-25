@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, Mail } from 'lucide-react';
+import { User, Shield, Key, Plus, Trash2, RefreshCw, Edit2, Check, X, Mail, Globe } from 'lucide-react';
 
 interface SettingsViewProps {
   isDemoMode: boolean;
@@ -13,7 +13,7 @@ export default function SettingsView({
   onProfileUpdate
 }: SettingsViewProps) {
   // Tabs: 'profile' | 'users' | 'mail'
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'users' | 'mail'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'users' | 'mail' | 'timezone'>('profile');
 
   // SMTP Config states
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
@@ -25,6 +25,8 @@ export default function SettingsView({
   const [adminEmail, setAdminEmail] = useState('no-reply@morangoai.com');
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState('60');
+  const [timezone, setTimezone] = useState('Asia/Dubai');
+  const [isSavingTimezone, setIsSavingTimezone] = useState(false);
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
   const [smtpError, setSmtpError] = useState('');
   const [smtpSuccess, setSmtpSuccess] = useState('');
@@ -211,15 +213,48 @@ export default function SettingsView({
         setAdminEmail(data.admin_email || 'no-reply@morangoai.com');
         setRemindersEnabled(data.reminders_enabled !== 'false');
         setReminderTime(data.reminder_time || '60');
+        setTimezone(data.timezone || 'Asia/Dubai');
       }
     } catch (err) {
       console.error('Error fetching SMTP settings:', err);
     }
   };
 
+  const handleSaveTimezone = async () => {
+    if (!timezone.trim()) return;
+    setIsSavingTimezone(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          smtp_host: smtpHost || 'smtp.gmail.com',
+          smtp_port: smtpPort || '587',
+          smtp_user: smtpUser || '',
+          smtp_pass: smtpPass || '',
+          smtp_from: smtpFrom || 'no-reply@morangoai.com',
+          meeting_link: meetingLink || 'https://calendly.com/mornagoai',
+          admin_email: adminEmail || 'no-reply@morangoai.com',
+          reminders_enabled: remindersEnabled ? 'true' : 'false',
+          reminder_time: reminderTime || '60',
+          timezone: timezone,
+        })
+      });
+      if (res.ok) {
+        showToast('Timezone saved successfully!', 'success');
+      } else {
+        showToast('Failed to save timezone.', 'error');
+      }
+    } catch {
+      showToast('Failed to save timezone.', 'error');
+    } finally {
+      setIsSavingTimezone(false);
+    }
+  };
+
   const handleSaveSmtpSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim() || !meetingLink.trim() || !adminEmail.trim() || !reminderTime.trim()) {
+    if (!smtpHost.trim() || !smtpPort.trim() || !smtpUser.trim() || !smtpFrom.trim() || !meetingLink.trim() || !adminEmail.trim() || !reminderTime.trim() || !timezone.trim()) {
       setSmtpError('Please fill out all required fields.');
       showToast('All fields except password are required.', 'error');
       return;
@@ -242,7 +277,8 @@ export default function SettingsView({
           meeting_link: meetingLink,
           admin_email: adminEmail,
           reminders_enabled: remindersEnabled ? 'true' : 'false',
-          reminder_time: reminderTime
+          reminder_time: reminderTime,
+          timezone: timezone
         })
       });
 
@@ -273,6 +309,8 @@ export default function SettingsView({
       fetchUsers();
     } else if (activeSubTab === 'mail') {
       fetchSmtpSettings();
+    } else if (activeSubTab === 'timezone') {
+      fetchSmtpSettings(); // reuses same API, timezone is included in the response
     }
   }, [activeSubTab]);
 
@@ -441,6 +479,27 @@ export default function SettingsView({
         >
           <Mail size={15} color={activeSubTab === 'mail' ? '#E8483D' : '#9AA1AD'} />
           Mail Configuration
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('timezone')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: activeSubTab === 'timezone' ? '#FDEBE9' : 'transparent',
+            color: activeSubTab === 'timezone' ? '#E8483D' : '#5A616E',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            textAlign: 'left'
+          }}
+        >
+          <Globe size={15} color={activeSubTab === 'timezone' ? '#E8483D' : '#9AA1AD'} />
+          Timezone
         </button>
       </div>
 
@@ -1015,6 +1074,96 @@ export default function SettingsView({
               </button>
             </form>
             </div>
+          </div>
+        )}
+
+        {/* SUBTAB 4: TIMEZONE */}
+        {activeSubTab === 'timezone' && (
+          <div>
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#16191D', marginBottom: '4px' }}>System Timezone</h3>
+              <p style={{ fontSize: '0.82rem', color: '#9AA1AD', fontWeight: 500 }}>
+                Controls how meeting dates and times are interpreted from calls, displayed in emails, and created in Google Calendar.
+              </p>
+            </div>
+
+            {/* Current timezone display */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              background: '#F0FDF4', border: '1px solid #BBF7D0',
+              borderRadius: '12px', padding: '14px 16px', marginBottom: '24px'
+            }}>
+              <Globe size={18} color="#16A34A" />
+              <div>
+                <p style={{ margin: 0, fontSize: '0.72rem', color: '#16A34A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Timezone</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.95rem', fontWeight: 800, color: '#16191D' }}>{timezone}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5A616E' }}>Select Timezone</label>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                style={{ height: '44px', fontSize: '0.9rem', backgroundColor: '#FFFFFF', borderRadius: '10px' }}
+              >
+                <optgroup label="Middle East">
+                  <option value="Asia/Dubai">UAE / Dubai — UTC+4</option>
+                  <option value="Asia/Riyadh">Saudi Arabia / Riyadh — UTC+3</option>
+                  <option value="Asia/Kuwait">Kuwait — UTC+3</option>
+                  <option value="Asia/Qatar">Qatar / Doha — UTC+3</option>
+                  <option value="Asia/Bahrain">Bahrain — UTC+3</option>
+                  <option value="Asia/Muscat">Oman / Muscat — UTC+4</option>
+                </optgroup>
+                <optgroup label="South Asia">
+                  <option value="Asia/Karachi">Pakistan / Karachi — UTC+5</option>
+                  <option value="Asia/Kolkata">India — UTC+5:30</option>
+                  <option value="Asia/Dhaka">Bangladesh — UTC+6</option>
+                  <option value="Asia/Colombo">Sri Lanka — UTC+5:30</option>
+                </optgroup>
+                <optgroup label="East Asia">
+                  <option value="Asia/Singapore">Singapore — UTC+8</option>
+                  <option value="Asia/Kuala_Lumpur">Malaysia — UTC+8</option>
+                  <option value="Asia/Bangkok">Thailand — UTC+7</option>
+                  <option value="Asia/Jakarta">Indonesia / Jakarta — UTC+7</option>
+                  <option value="Asia/Hong_Kong">Hong Kong — UTC+8</option>
+                  <option value="Asia/Tokyo">Japan / Tokyo — UTC+9</option>
+                </optgroup>
+                <optgroup label="Europe">
+                  <option value="Europe/London">UK / London — UTC+0/+1</option>
+                  <option value="Europe/Paris">France / Germany — UTC+1/+2</option>
+                  <option value="Europe/Istanbul">Turkey / Istanbul — UTC+3</option>
+                </optgroup>
+                <optgroup label="Americas">
+                  <option value="America/New_York">US Eastern — UTC-5/-4</option>
+                  <option value="America/Chicago">US Central — UTC-6/-5</option>
+                  <option value="America/Los_Angeles">US Pacific — UTC-8/-7</option>
+                  <option value="America/Toronto">Canada / Toronto — UTC-5/-4</option>
+                </optgroup>
+                <optgroup label="Africa">
+                  <option value="Africa/Cairo">Egypt / Cairo — UTC+2/+3</option>
+                  <option value="Africa/Nairobi">Kenya / Nairobi — UTC+3</option>
+                  <option value="Africa/Lagos">Nigeria / Lagos — UTC+1</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px', padding: '12px 16px', marginBottom: '24px', fontSize: '0.8rem', color: '#92400E', fontWeight: 500 }}>
+              Changing the timezone affects: AI call date parsing, confirmation emails, meeting reminders, and Google Calendar events. All new meetings will use the updated timezone.
+            </div>
+
+            <button
+              onClick={handleSaveTimezone}
+              className="btn btn-primary"
+              style={{ height: '42px', padding: '0 28px' }}
+              disabled={isSavingTimezone}
+            >
+              {isSavingTimezone ? (
+                <><RefreshCw size={14} className="spinning" /> Saving...</>
+              ) : (
+                <><Globe size={14} /> Save Timezone</>
+              )}
+            </button>
           </div>
         )}
 

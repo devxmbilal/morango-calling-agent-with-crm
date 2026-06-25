@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { isServerDbConfigured } from '@/lib/db-server';
 import { checkMeetingConflict, createCalendarEvent } from '@/lib/calendar';
 import { sendConfirmationEmail, sendAdminNotificationEmail } from '@/lib/email';
+import { getTimezone, getTimezoneOffsetString } from '@/lib/db-server';
 
 export async function POST(req: Request) {
   try {
@@ -63,16 +64,31 @@ export async function POST(req: Request) {
         let finalMeetingDate = meeting_date;
         if (meeting_date) {
           try {
-            // If no timezone info in the string, treat as PKT (UTC+5)
+            // If no timezone info in the string, treat as the configured timezone
+            const configuredTz = await getTimezone();
             const hasTimezone = meeting_date.endsWith('Z') ||
               meeting_date.includes('+') ||
               meeting_date.toLowerCase().includes('utc');
-            const dateStr = hasTimezone ? meeting_date : meeting_date + '+05:00';
+            const tzOffset = hasTimezone ? '' : getTimezoneOffsetString(configuredTz);
+            const dateStr = hasTimezone ? meeting_date : meeting_date + tzOffset;
             const parsedDate = new Date(dateStr);
             if (!isNaN(parsedDate.getTime())) {
               const currentDate = new Date();
+              // Fix wrong year
               if (parsedDate.getFullYear() < currentDate.getFullYear()) {
                 parsedDate.setFullYear(currentDate.getFullYear());
+              }
+              // Fix Vapi UTC "tomorrow" bug: Vapi runs in UTC, so when caller says
+              // "tomorrow" at e.g. 5PM Dubai time (13:00 UTC), Vapi may resolve the date
+              // as "today" in UTC instead of "tomorrow" in Dubai time. If the resolved date
+              // falls on the same calendar day as today in Dubai time, shift it forward 1 day.
+              const tzNow = new Date(currentDate.toLocaleString('en-US', { timeZone: configuredTz }));
+              const tzMeeting = new Date(parsedDate.toLocaleString('en-US', { timeZone: configuredTz }));
+              const todayTz = new Date(tzNow.getFullYear(), tzNow.getMonth(), tzNow.getDate());
+              const meetingDayTz = new Date(tzMeeting.getFullYear(), tzMeeting.getMonth(), tzMeeting.getDate());
+              if (meetingDayTz.getTime() === todayTz.getTime() && tzMeeting.getTime() < tzNow.getTime()) {
+                // Meeting time already passed today → shift to same time tomorrow
+                parsedDate.setDate(parsedDate.getDate() + 1);
               }
               finalMeetingDate = parsedDate.toISOString();
             }

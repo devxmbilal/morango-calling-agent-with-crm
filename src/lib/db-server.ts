@@ -194,3 +194,32 @@ export const dbServer = {
     return map;
   },
 };
+
+/** Returns the configured timezone from DB, falling back to Asia/Dubai */
+export async function getTimezone(): Promise<string> {
+  try {
+    const tz = await dbServer.getSetting('timezone');
+    if (tz && tz.trim()) return tz.trim();
+  } catch {}
+  return 'Asia/Dubai';
+}
+
+/**
+ * Returns the UTC offset string (e.g. "+04:00", "+05:30") for a given IANA timezone.
+ * Used to append to bare datetime strings from Vapi.
+ */
+export function getTimezoneOffsetString(timezone: string): string {
+  try {
+    const now = new Date();
+    const utcMs = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+    const tzMs  = new Date(now.toLocaleString('en-US', { timeZone: timezone })).getTime();
+    const diffMins = Math.round((tzMs - utcMs) / 60000);
+    const sign = diffMins >= 0 ? '+' : '-';
+    const abs = Math.abs(diffMins);
+    const h = String(Math.floor(abs / 60)).padStart(2, '0');
+    const m = String(abs % 60).padStart(2, '0');
+    return `${sign}${h}:${m}`;
+  } catch {
+    return '+04:00';
+  }
+}

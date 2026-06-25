@@ -1,6 +1,5 @@
 import { google } from 'googleapis';
-import { isServerDbConfigured } from './db-server';
-import { dbServer } from './db-server';
+import { isServerDbConfigured, dbServer, getTimezone } from './db-server';
 import { isPlaceholderMeetingLink } from './meeting-link';
 
 // Extract keys from environment
@@ -141,6 +140,7 @@ export async function createCalendarEvent(args: {
     console.error('Error fetching fallback meeting link:', err);
   }
 
+  const timezone = await getTimezone();
   const eventDate = new Date(args.meetingDate);
   const endEventDate = new Date(eventDate.getTime() + 30 * 60 * 1000); // 30 mins slot
 
@@ -169,11 +169,11 @@ export async function createCalendarEvent(args: {
         description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
         start: {
           dateTime: eventDate.toISOString(),
-          timeZone: 'Asia/Karachi',
+          timeZone: timezone,
         },
         end: {
           dateTime: endEventDate.toISOString(),
-          timeZone: 'Asia/Karachi',
+          timeZone: timezone,
         },
         attendees: [{ email: args.email }],
         conferenceData: {
@@ -198,11 +198,11 @@ export async function createCalendarEvent(args: {
           description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
           start: {
             dateTime: eventDate.toISOString(),
-            timeZone: 'Asia/Karachi',
+            timeZone: timezone,
           },
           end: {
             dateTime: endEventDate.toISOString(),
-            timeZone: 'Asia/Karachi',
+            timeZone: timezone,
           },
           conferenceData: {
             createRequest: {
@@ -225,11 +225,11 @@ export async function createCalendarEvent(args: {
             description: `Consultation session for service: ${args.service}. Budget mentioned: ${args.budget || 'N/A'}. Scheduled via MorangoAI Receptionist. Guest Email: ${args.email}`,
             start: {
               dateTime: eventDate.toISOString(),
-              timeZone: 'Asia/Karachi',
+              timeZone: timezone,
             },
             end: {
               dateTime: endEventDate.toISOString(),
-              timeZone: 'Asia/Karachi',
+              timeZone: timezone,
           },
         },
       });

@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
-import { isServerDbConfigured } from './db-server';
-import { dbServer } from './db-server';
+import { isServerDbConfigured, dbServer, getTimezone } from './db-server';
 import { isPlaceholderMeetingLink } from './meeting-link';
 import fs from 'fs';
 import path from 'path';
@@ -105,6 +104,7 @@ export async function sendConfirmationEmail(args: {
     if (!smtp) return false;
 
     // Format meeting date and time nicely
+    const emailTimezone = await getTimezone();
     let formattedDate = args.meetingDate;
     try {
       const dateObj = new Date(args.meetingDate);
@@ -116,7 +116,8 @@ export async function sendConfirmationEmail(args: {
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
-          hour12: true
+          hour12: true,
+          timeZone: emailTimezone
         });
       }
     } catch (e) {
@@ -290,6 +291,7 @@ export async function sendMeetingReminderEmail(args: {
     const smtp = await getSmtpTransporter();
     if (!smtp) return false;
 
+    const reminderTimezone = await getTimezone();
     let formattedDate = args.meetingDate;
     try {
       const dateObj = new Date(args.meetingDate);
@@ -301,7 +303,8 @@ export async function sendMeetingReminderEmail(args: {
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
-          hour12: true
+          hour12: true,
+          timeZone: reminderTimezone
         });
       }
     } catch (e) {}

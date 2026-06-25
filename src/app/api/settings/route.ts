@@ -44,6 +44,7 @@ export async function GET(req: Request) {
     admin_email: 'no-reply@morangoai.com',
     reminders_enabled: 'true',
     reminder_time: '60',
+    timezone: 'Asia/Dubai',
   };
 
   try {
@@ -86,6 +87,7 @@ export async function POST(req: Request) {
       admin_email,
       reminders_enabled,
       reminder_time,
+      timezone,
     } = await req.json();
 
     if (!smtp_host || !smtp_port || !smtp_user || !smtp_from) {
@@ -114,6 +116,7 @@ export async function POST(req: Request) {
       admin_email: (admin_email || 'no-reply@morangoai.com').trim(),
       reminders_enabled: reminders_enabled === 'false' ? 'false' : 'true',
       reminder_time: (reminder_time || '60').toString().trim(),
+      timezone: (timezone || 'Asia/Dubai').trim(),
     };
 
     if (isServerDbConfigured) {
