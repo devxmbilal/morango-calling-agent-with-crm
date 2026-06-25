@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendConfirmationEmail } from '@/lib/email';
 import { requireAuth } from '@/lib/api-auth';
 import { dbServer, isServerDbConfigured } from '@/lib/db-server';
+import { isPlaceholderMeetingLink } from '@/lib/meeting-link';
 
 export async function POST(req: Request) {
   const auth = await requireAuth(req);
@@ -17,23 +18,13 @@ export async function POST(req: Request) {
     }
 
     let activeMeetingLink = meetingLink;
-    if (
-      !activeMeetingLink ||
-      activeMeetingLink.trim() === '' ||
-      activeMeetingLink === 'https://calendly.com/morangoai' ||
-      activeMeetingLink === 'https://calendly.com/mornagoai'
-    ) {
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || isPlaceholderMeetingLink(activeMeetingLink)) {
       if (isServerDbConfigured) {
         activeMeetingLink = (await dbServer.getSetting('meeting_link')) || '';
       }
     }
 
-    if (
-      !activeMeetingLink ||
-      activeMeetingLink.trim() === '' ||
-      activeMeetingLink === 'https://calendly.com/morangoai' ||
-      activeMeetingLink === 'https://calendly.com/mornagoai'
-    ) {
+    if (!activeMeetingLink || activeMeetingLink.trim() === '' || isPlaceholderMeetingLink(activeMeetingLink)) {
       return NextResponse.json({ error: 'No meeting link configured. Please set a meeting link in settings first.' }, { status: 400 });
     }
 

@@ -21,7 +21,7 @@ export default function SettingsView({
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
   const [smtpFrom, setSmtpFrom] = useState('no-reply@morangoai.com');
-  const [meetingLink, setMeetingLink] = useState('https://calendly.com/morangoai');
+  const [meetingLink, setMeetingLink] = useState('https://calendly.com/mornagoai');
   const [adminEmail, setAdminEmail] = useState('no-reply@morangoai.com');
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [reminderTime, setReminderTime] = useState('60');
@@ -207,7 +207,7 @@ export default function SettingsView({
         setSmtpUser(data.smtp_user || '');
         setSmtpPass(data.smtp_pass || '');
         setSmtpFrom(data.smtp_from || 'no-reply@morangoai.com');
-        setMeetingLink(data.meeting_link || 'https://calendly.com/morangoai');
+        setMeetingLink(data.meeting_link || 'https://calendly.com/mornagoai');
         setAdminEmail(data.admin_email || 'no-reply@morangoai.com');
         setRemindersEnabled(data.reminders_enabled !== 'false');
         setReminderTime(data.reminder_time || '60');
@@ -946,7 +946,7 @@ export default function SettingsView({
                 </label>
                 <input
                   type="url"
-                  placeholder="https://calendly.com/morangoai"
+                  placeholder="https://calendly.com/mornagoai"
                   value={meetingLink}
                   onChange={(e) => setMeetingLink(e.target.value)}
                   required

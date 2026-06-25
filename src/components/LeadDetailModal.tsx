@@ -462,17 +462,18 @@ export default function LeadDetailModal({
 
           {/* Left Panel: Contact info */}
           <div className="modal-side-panel" style={{
-            width: '300px',
+            width: '260px',
+            flexShrink: 0,
             borderRight: '1px solid #EBECEF',
-            padding: '24px',
+            padding: '20px',
             backgroundColor: '#FAFBFC',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px'
+            gap: '16px'
           }}>
-            <h3 style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#AEB4BE' }}>
-              Contact & Project Details
+            <h3 style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#AEB4BE', whiteSpace: 'nowrap' }}>
+              Contact Details
             </h3>
 
             {/* Info Items */}
@@ -635,6 +636,7 @@ export default function LeadDetailModal({
           {/* Right Panel: Content tabs */}
           <div style={{
             flexGrow: 1,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden'
@@ -1241,10 +1243,14 @@ export default function LeadDetailModal({
           }
           .modal-side-panel {
             width: 100% !important;
+            flex-shrink: 0 !important;
             border-right: none !important;
-            border-bottom: 1px solid #EBECEF;
-            max-height: 180px;
-            overflow-y: auto;
+            border-bottom: 1px solid #EBECEF !important;
+            max-height: 220px !important;
+            overflow-y: auto !important;
+            padding: 16px !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
           }
           .modal-tab-content {
             min-height: 0 !important;
