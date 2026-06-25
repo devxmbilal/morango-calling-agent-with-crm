@@ -11,8 +11,10 @@ interface CallsViewProps {
 
 export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
   
-  // 1. Filter leads that have call data (either recording or transcript)
-  const callLeads = leads.filter(l => l.recording_url || l.transcript);
+  // Show all leads that came from a Vapi call, whether or not transcript/recording is ready yet
+  const callLeads = leads.filter(l =>
+    l.source === 'Vapi Call' || l.vapi_call_id || l.recording_url || l.transcript
+  );
 
   // Status colors helper
   const getStatusColor = (status: Lead['status']) => {
@@ -32,20 +34,23 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
   // Helper to extract first 3 lines of transcript for snippet
   const getTranscriptSnippet = (transcript?: string) => {
     if (!transcript) return [];
-    return transcript.split('\n').slice(0, 3).map((line, i) => {
-      const isAgent = line.startsWith('Agent:');
-      const isClient = line.startsWith('Client:');
-      let speaker = 'Agent';
-      let content = line;
-      if (isAgent) {
-        speaker = 'Agent';
-        content = line.replace('Agent:', '').trim();
-      } else if (isClient) {
-        speaker = 'Client';
-        content = line.replace('Client:', '').trim();
-      }
-      return { id: i, speaker, content };
-    });
+    return transcript.split('\n')
+      .filter(l => l.trim())
+      .slice(0, 3)
+      .map((line, i) => {
+        const isAgent = /^(AI|Agent|Assistant|Bot)\s*:/i.test(line);
+        const isClient = /^(User|Client|Human|Caller)\s*:/i.test(line);
+        let speaker = 'Agent';
+        let content = line;
+        if (isAgent) {
+          speaker = 'AI';
+          content = line.replace(/^(AI|Agent|Assistant|Bot)\s*:\s*/i, '').trim();
+        } else if (isClient) {
+          speaker = 'Client';
+          content = line.replace(/^(User|Client|Human|Caller)\s*:\s*/i, '').trim();
+        }
+        return { id: i, speaker, content };
+      });
   };
 
   // Helper to generate AI summary
@@ -70,7 +75,7 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
         }}>
           <AlertCircle size={36} style={{ marginBottom: '12px' }} />
           <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>No Call Logs Available</p>
-          <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Calls made to your Vapi agent will automatically populate here.</p>
+          <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>Leads created via Vapi calls will appear here automatically.</p>
         </div>
       ) : (
         callLeads.map((lead, index) => {
@@ -134,7 +139,7 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                 </div>
 
                 {/* HTML5 Audio Player */}
-                {lead.recording_url && (
+                {lead.recording_url ? (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -145,47 +150,68 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                     padding: '11px 14px',
                     marginBottom: '14px'
                   }}>
-                    <audio 
-                      src={lead.recording_url} 
-                      controls 
+                    <audio
+                      src={lead.recording_url}
+                      controls
                       style={{ width: '100%', height: '32px', outline: 'none' }}
                     />
+                  </div>
+                ) : (
+                  <div style={{
+                    background: '#FFFBEB', border: '1px solid #FDE68A',
+                    borderRadius: '10px', padding: '10px 14px', marginBottom: '14px',
+                    fontSize: '12px', color: '#92400E', fontWeight: 500
+                  }}>
+                    Recording not available yet — it will appear here after the call ends and Vapi sends the report.
                   </div>
                 )}
 
                 {/* AI Summary & Snippet info */}
                 <div className="calls-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  
+
                   {/* Summary */}
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' }}>
                       <Phone size={13} color="#E8483D" />
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#16191D' }}>AI Summary</span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '12.5px', color: '#5A616E', lineHeight: '1.6', fontWeight: 500 }}>
-                      {aiSummary}
-                    </p>
+                    {(() => {
+                      const summaryNote = lead.notes?.find(n => n.note.startsWith('[Call Summary]'));
+                      const intentNote = lead.notes?.find(n => n.note.startsWith('[AI Intent Analysis]'));
+                      const text = summaryNote
+                        ? summaryNote.note.replace('[Call Summary]', '').trim()
+                        : intentNote
+                          ? intentNote.note.replace('[AI Intent Analysis]', '').trim()
+                          : null;
+                      return text ? (
+                        <p style={{ margin: 0, fontSize: '12.5px', color: '#5A616E', lineHeight: '1.6', fontWeight: 500 }}>{text}</p>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: '12px', color: '#9AA1AD', fontStyle: 'italic' }}>Summary will appear here after the call ends.</p>
+                      );
+                    })()}
                   </div>
 
                   {/* Transcript Snippet */}
-                  {transcriptSnippet.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' }}>
-                        <MessageSquare size={13} color="#9AA1AD" />
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#16191D' }}>Transcript snippet</span>
-                      </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' }}>
+                      <MessageSquare size={13} color="#9AA1AD" />
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#16191D' }}>Transcript snippet</span>
+                    </div>
+                    {transcriptSnippet.length > 0 ? (
                       <div style={{ fontSize: '12px', color: '#5A616E', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                         {transcriptSnippet.map((s) => (
                           <div key={s.id}>
-                            <span style={{ fontWeight: 700, color: s.speaker === 'Agent' ? '#E8483D' : '#16191D' }}>
+                            <span style={{ fontWeight: 700, color: s.speaker === 'AI' ? '#E8483D' : '#16191D' }}>
                               {s.speaker}:
                             </span>{' '}
                             {s.content}
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <p style={{ margin: 0, fontSize: '12px', color: '#9AA1AD', fontStyle: 'italic' }}>Transcript not available yet.</p>
+                    )}
+                  </div>
 
                 </div>
 
