@@ -100,6 +100,15 @@ export default function Dashboard() {
     }
   };
 
+  const silentRefreshLeads = async () => {
+    try {
+      const data = await dbService.getLeads();
+      setLeads(data);
+    } catch (err) {
+      console.error('Silent refresh error:', err);
+    }
+  };
+
   const fetchSession = async () => {
     try {
       const res = await fetch('/api/auth/me');
@@ -127,9 +136,9 @@ export default function Dashboard() {
       }
     }
 
-    // Auto-refresh every 30 seconds to pick up new Vapi leads without manual refresh
+    // Silently refresh leads every 30 seconds to pick up new Vapi leads
     const pollInterval = setInterval(() => {
-      fetchLeads();
+      silentRefreshLeads();
     }, 30000);
 
     return () => clearInterval(pollInterval);
