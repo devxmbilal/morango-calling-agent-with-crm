@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Lock, User, RefreshCw } from 'lucide-react';
+import { Lock, User, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,19 +167,44 @@ export default function LoginPage() {
             <div style={{ position: 'relative' }}>
               <Lock size={15} color="#9AA1AD" style={{ position: 'absolute', left: '14px', top: '13px' }} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 style={{
                   paddingLeft: '42px',
+                  paddingRight: '42px',
                   height: '42px',
                   borderRadius: '10px',
                   fontSize: '0.88rem'
                 }}
                 disabled={isLoading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#9AA1AD',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#5A616E')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#9AA1AD')}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
