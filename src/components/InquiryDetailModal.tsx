@@ -267,10 +267,11 @@ export default function InquiryDetailModal({ inquiry, onClose, onDelete }: Inqui
                   <h3 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: '#9AA1AD', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Headphones size={14} /> Call Recording
                   </h3>
-                  <audio controls style={{ width: '100%', borderRadius: '8px' }}>
-                    <source src={inquiry.recording_url} />
-                    Your browser does not support the audio element.
-                  </audio>
+                  <audio
+                    src={inquiry.recording_url}
+                    controls
+                    style={{ width: '100%', borderRadius: '8px', outline: 'none' }}
+                  />
                 </div>
               )}
 
