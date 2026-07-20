@@ -268,13 +268,13 @@ export default function InquiryDetailModal({ inquiry, onClose, onDelete }: Inqui
                     <Headphones size={14} /> Call Recording
                   </h3>
                   <audio
-                    src={inquiry.recording_url}
+                    src={`/api/crm/recordings?url=${encodeURIComponent(inquiry.recording_url)}`}
                     controls
                     style={{ width: '100%', borderRadius: '8px', outline: 'none' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
                     <a
-                      href={inquiry.recording_url}
+                      href={`/api/crm/recordings?url=${encodeURIComponent(inquiry.recording_url)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -287,7 +287,7 @@ export default function InquiryDetailModal({ inquiry, onClose, onDelete }: Inqui
                         gap: '4px',
                       }}
                     >
-                      Can't play? Open / Download recording
+                       Download recording
                     </a>
                   </div>
                 </div>

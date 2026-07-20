@@ -622,13 +622,13 @@ export default function LeadDetailModal({
                   Call Recording
                 </h4>
                 <audio
-                  src={lead.recording_url}
+                  src={`/api/crm/recordings?url=${encodeURIComponent(lead.recording_url)}`}
                   controls
                   style={{ width: '100%', height: '32px', outline: 'none' }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
                   <a
-                    href={lead.recording_url}
+                    href={`/api/crm/recordings?url=${encodeURIComponent(lead.recording_url)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{

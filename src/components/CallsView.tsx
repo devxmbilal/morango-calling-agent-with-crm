@@ -152,12 +152,12 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                     marginBottom: '14px'
                   }}>
                     <audio
-                      src={lead.recording_url}
+                      src={`/api/crm/recordings?url=${encodeURIComponent(lead.recording_url)}`}
                       controls
                       style={{ width: '100%', height: '32px', outline: 'none' }}
                     />
                     <a
-                      href={lead.recording_url}
+                      href={`/api/crm/recordings?url=${encodeURIComponent(lead.recording_url)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -168,7 +168,7 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                         alignSelf: 'flex-end',
                       }}
                     >
-                      Can't play? Open / Download recording
+                       Download recording
                     </a>
                   </div>
                 ) : (
