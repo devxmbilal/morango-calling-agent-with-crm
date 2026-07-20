@@ -30,8 +30,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
     }
 
-    if (password.length < 8) {
-      return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters long.' }, { status: 400 });
     }
 
     const newUser = await authService.createUser(username, password, name);
@@ -58,8 +58,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'User ID is required for updates.' }, { status: 400 });
     }
 
-    if (password && password.length < 8) {
-      return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
+    if (password && password.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters long.' }, { status: 400 });
     }
 
     const updatedUser = await authService.updateUser(userId, {

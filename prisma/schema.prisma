@@ -60,6 +60,21 @@ model User {
   @@map("users")
 }
 
+model Inquiry {
+  id            String   @id @default(uuid())
+  name          String
+  phone         String
+  call_summary  String?
+  call_status   String   @default("Completed")
+  vapi_call_id  String?
+  transcript    String?
+  recording_url String?
+  source        String   @default("Vapi Call")
+  created_at    DateTime @default(now())
+
+  @@map("inquiries")
+}
+
 model SystemSetting {
   key   String @id
   value String

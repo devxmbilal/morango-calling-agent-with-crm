@@ -287,6 +287,78 @@ export async function POST(req: Request) {
           }],
         }, { status: 200 });
       }
+
+      if (functionName === 'create_inquiry') {
+        const { name, phone, call_summary } = args;
+
+        if (!name || !phone) {
+          return NextResponse.json({
+            results: [{
+              toolCallId,
+              result: 'Missing required parameters: name or phone',
+            }],
+          }, { status: 200 });
+        }
+
+        let inquiryId = 'demo-inquiry-id';
+
+        if (isServerDbConfigured) {
+          let existingInquiry = null;
+
+          if (callId) {
+            existingInquiry = await prisma.inquiry.findFirst({
+              where: { vapi_call_id: callId },
+            });
+          }
+
+          if (!existingInquiry && phone) {
+            const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+            existingInquiry = await prisma.inquiry.findFirst({
+              where: {
+                phone,
+                created_at: { gt: fiveMinsAgo },
+              },
+              orderBy: { created_at: 'desc' },
+            });
+          }
+
+          if (existingInquiry) {
+            await prisma.inquiry.update({
+              where: { id: existingInquiry.id },
+              data: {
+                name,
+                phone,
+                call_summary: call_summary || existingInquiry.call_summary,
+                vapi_call_id: callId || existingInquiry.vapi_call_id,
+              },
+            });
+            inquiryId = existingInquiry.id;
+          } else {
+            const inquiry = await prisma.inquiry.create({
+              data: {
+                name,
+                phone,
+                call_summary: call_summary || null,
+                call_status: 'Completed',
+                source: 'Vapi Call',
+                vapi_call_id: callId || null,
+              },
+            });
+            inquiryId = inquiry.id;
+          }
+        }
+
+        return NextResponse.json({
+          results: [{
+            toolCallId,
+            result: JSON.stringify({
+              status: 'success',
+              message: 'Inquiry recorded successfully in MorangoAI CRM.',
+              inquiry_id: inquiryId,
+            }),
+          }],
+        }, { status: 200 });
+      }
     }
 
     if (message.type === 'end-of-call-report') {
@@ -364,6 +436,41 @@ export async function POST(req: Request) {
               data: { lead_id: matchedLeadId, note: summaryNoteText },
             });
           }
+        }
+      } else {
+        // Try matching against inquiries table
+        let matchedInquiryId: string | null = null;
+
+        if (callId) {
+          const inquiry = await prisma.inquiry.findFirst({
+            where: { vapi_call_id: callId },
+            select: { id: true },
+          });
+          if (inquiry) matchedInquiryId = inquiry.id;
+        }
+
+        if (!matchedInquiryId && customerPhone) {
+          const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+          const lastNine = cleanPhone.slice(-9);
+          const phoneInquiries = await prisma.inquiry.findMany({
+            select: { id: true, phone: true },
+          });
+
+          const matched = phoneInquiries?.find((inq: any) => {
+            const iClean = (inq.phone || '').replace(/[^0-9]/g, '');
+            return iClean === cleanPhone || (lastNine && iClean.endsWith(lastNine));
+          });
+          if (matched) matchedInquiryId = matched.id;
+        }
+
+        if (matchedInquiryId) {
+          await prisma.inquiry.update({
+            where: { id: matchedInquiryId },
+            data: {
+              transcript: transcriptText || null,
+              recording_url: recordingUrlText || null,
+            },
+          });
         }
       }
 

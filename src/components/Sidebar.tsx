@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Users, Calendar, PhoneCall, GitBranch, BarChart3, Mail, Settings, LogOut, X } from 'lucide-react';
+import { Users, Calendar, PhoneCall, GitBranch, BarChart3, Mail, Settings, LogOut, X, Info } from 'lucide-react';
 
 interface SidebarProps {
   isDemoMode: boolean;
@@ -27,6 +27,7 @@ export default function Sidebar({
     { name: 'Leads', icon: Users, tab: 'leads' },
     { name: 'Meetings', icon: Calendar, tab: 'meetings' },
     { name: 'Call Logs', icon: PhoneCall, tab: 'calls' },
+    { name: 'Inquiries', icon: Info, tab: 'inquiries' },
     { name: 'Pipeline', icon: GitBranch, tab: 'pipeline' },
   ];
 

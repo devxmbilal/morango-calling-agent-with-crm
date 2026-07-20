@@ -2,15 +2,16 @@
 
 import React from 'react';
 import { Lead } from '@/lib/db';
-import { Phone, Calendar, TrendingUp, Users, ArrowRight } from 'lucide-react';
+import { Phone, Calendar, TrendingUp, Users, ArrowRight, Info } from 'lucide-react';
 
 interface OverviewViewProps {
   leads: Lead[];
   onSelectLead: (lead: Lead) => void;
   onNavigateToTab: (tab: string) => void;
+  inquiriesCount?: number;
 }
 
-export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: OverviewViewProps) {
+export default function OverviewView({ leads, onSelectLead, onNavigateToTab, inquiriesCount = 0 }: OverviewViewProps) {
   // 1. Dynamic Calculations based on real leads data (no mock offsets)
   const totalCalls = leads.filter(l => l.vapi_call_id || l.recording_url).length;
   const totalMeetings = leads.reduce((acc, l) => acc + (l.meetings?.length || 0), 0);
@@ -91,7 +92,7 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
     <div style={{ animation: 'fadeUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '32px' }}>
       
       {/* STAT CARDS */}
-      <div className="stats-grid overview-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div className="stats-grid overview-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
         
         {/* Total Calls */}
         <div style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px' }}>
@@ -135,6 +136,22 @@ export default function OverviewView({ leads, onSelectLead, onNavigateToTab }: O
           </div>
           <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{activeLeadsCount}</div>
           <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Active Leads</div>
+        </div>
+
+        {/* Inquiries */}
+        <div
+          onClick={() => onNavigateToTab('inquiries')}
+          style={{ background: '#fff', border: '1px solid #ECEDEF', borderRadius: '16px', padding: '18px', cursor: 'pointer', transition: 'all 0.2s ease' }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(139,92,246,0.1)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#ECEDEF'; e.currentTarget.style.boxShadow = 'none'; }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 14px 0' }}>
+            <span style={{ width: '38px', height: '38px', borderRadius: '11px', background: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Info size={18} color="#8B5CF6" />
+            </span>
+          </div>
+          <div style={{ fontSize: '27px', fontWeight: 800, color: '#16191D', letterSpacing: '-0.6px' }}>{inquiriesCount}</div>
+          <div style={{ fontSize: '12.5px', color: '#9AA1AD', fontWeight: 600, marginTop: '2px' }}>Inquiries</div>
         </div>
 
       </div>

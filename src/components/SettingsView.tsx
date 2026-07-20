@@ -370,8 +370,8 @@ export default function SettingsView({
       return;
     }
     if (userPassword.length < 6) {
-      setUserError('Password must be at least 8 characters.');
-      showToast('Password must be at least 8 characters.', 'error');
+      setUserError('Password must be at least 6 characters.');
+      showToast('Password must be at least 6 characters.', 'error');
       return;
     }
 

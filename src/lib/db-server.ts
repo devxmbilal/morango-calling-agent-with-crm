@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import type { Lead, Meeting, Note } from './db';
+import type { Lead, Meeting, Note, Inquiry } from './db';
 import { isPlaceholderMeetingLink } from './meeting-link';
 
 export const isServerDbConfigured = !!process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '';
@@ -192,6 +192,36 @@ export const dbServer = {
       map[row.key] = row.value;
     });
     return map;
+  },
+
+  async getInquiries(): Promise<Inquiry[]> {
+    if (!isServerDbConfigured) {
+      throw new Error('Database is not configured.');
+    }
+
+    const inquiries = await prisma.inquiry.findMany({
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return inquiries.map((inq: any) => ({
+      ...inq,
+      created_at: inq.created_at.toISOString(),
+    })) as any[] as Inquiry[];
+  },
+
+  async deleteInquiry(id: string): Promise<boolean> {
+    if (!isServerDbConfigured) return false;
+    try {
+      await prisma.inquiry.delete({
+        where: { id },
+      });
+      return true;
+    } catch (err) {
+      console.error('Prisma deleteInquiry error:', err);
+      return false;
+    }
   },
 };
 

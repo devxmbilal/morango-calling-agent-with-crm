@@ -34,6 +34,19 @@ export interface Note {
   created_at: string;
 }
 
+export interface Inquiry {
+  id: string;
+  name: string;
+  phone: string;
+  call_summary?: string;
+  call_status: 'Completed' | 'Disconnected' | 'In Progress';
+  vapi_call_id?: string;
+  transcript?: string;
+  recording_url?: string;
+  source: string;
+  created_at: string;
+}
+
 const MOCK_LEADS: Lead[] = [];
 
 const getLocalData = (): Lead[] => {
@@ -276,6 +289,33 @@ export const dbService = {
 
     const data = await apiRequest<{ success: boolean }>(
       `/api/crm/leads?id=${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    return data.success;
+  },
+
+  async getInquiries(): Promise<Inquiry[]> {
+    const isDemo = await resolveDemoMode();
+    this.isDemoMode = isDemo;
+
+    if (isDemo) {
+      return [];
+    }
+
+    try {
+      const data = await apiRequest<{ inquiries: Inquiry[] }>('/api/crm/inquiries');
+      return data.inquiries;
+    } catch (err) {
+      console.error('API fetch inquiries error:', err);
+      return [];
+    }
+  },
+
+  async deleteInquiry(id: string): Promise<boolean> {
+    if (this.isDemoMode) return false;
+
+    const data = await apiRequest<{ success: boolean }>(
+      `/api/crm/inquiries?id=${encodeURIComponent(id)}`,
       { method: 'DELETE' }
     );
     return data.success;

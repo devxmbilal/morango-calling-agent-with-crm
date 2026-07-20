@@ -12,12 +12,14 @@ import CallsView from '@/components/CallsView';
 import AnalyticsView from '@/components/AnalyticsView';
 import EmailView from '@/components/EmailView';
 import SettingsView from '@/components/SettingsView';
-import { dbService, Lead } from '@/lib/db';
+import InquiriesView from '@/components/InquiriesView';
+import { dbService, Lead, Inquiry } from '@/lib/db';
 import { Database, X, RefreshCw, Menu, Bell } from 'lucide-react';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<string>('overview'); // Default Landing Tab
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
 
   // Synchronize activeTab state with URL search parameter
   useEffect(() => {
@@ -27,7 +29,7 @@ export default function Dashboard() {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
       
-      const validTabs = ['overview', 'leads', 'meetings', 'calls', 'pipeline', 'analytics', 'email', 'settings'];
+      const validTabs = ['overview', 'leads', 'meetings', 'calls', 'inquiries', 'pipeline', 'analytics', 'email', 'settings'];
       if (tabParam && validTabs.includes(tabParam)) {
         setActiveTab(tabParam);
       }
@@ -90,8 +92,12 @@ export default function Dashboard() {
   const fetchLeads = async () => {
     setIsLoading(true);
     try {
-      const data = await dbService.getLeads();
-      setLeads(data);
+      const [leadsData, inquiriesData] = await Promise.all([
+        dbService.getLeads(),
+        dbService.getInquiries(),
+      ]);
+      setLeads(leadsData);
+      setInquiries(inquiriesData);
       setIsDemoMode(dbService.isDemoMode);
     } catch (err) {
       console.error(err);
@@ -102,8 +108,12 @@ export default function Dashboard() {
 
   const silentRefreshLeads = async () => {
     try {
-      const data = await dbService.getLeads();
-      setLeads(data);
+      const [leadsData, inquiriesData] = await Promise.all([
+        dbService.getLeads(),
+        dbService.getInquiries(),
+      ]);
+      setLeads(leadsData);
+      setInquiries(inquiriesData);
     } catch (err) {
       console.error('Silent refresh error:', err);
     }
@@ -346,6 +356,22 @@ export default function Dashboard() {
   };
 
 
+  // Delete Inquiry
+  const handleDeleteInquiry = async (inquiryId: string) => {
+    try {
+      const success = await dbService.deleteInquiry(inquiryId);
+      if (success) {
+        setInquiries((prev) => prev.filter((i) => i.id !== inquiryId));
+        showToast('Inquiry deleted successfully!', 'success');
+      } else {
+        showToast('Failed to delete inquiry.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to delete inquiry due to an error.', 'error');
+    }
+  };
+
   // Tab Header Details
   const getHeaderDetails = () => {
     switch (activeTab) {
@@ -357,6 +383,8 @@ export default function Dashboard() {
         return { title: 'Meetings & Appointments', sub: 'List of upcoming calendar events' };
       case 'calls':
         return { title: 'Call Recording Logs', sub: 'Voice recordings and transcripts' };
+      case 'inquiries':
+        return { title: 'Information Inquiries', sub: 'Calls from people who contacted for information only' };
       case 'analytics':
         return { title: 'Analytics Insights', sub: 'Call conversion metrics and charts' };
       case 'email':
@@ -753,6 +781,7 @@ export default function Dashboard() {
                   leads={filteredLeads}
                   onSelectLead={handleSelectLead}
                   onNavigateToTab={setActiveTab}
+                  inquiriesCount={inquiries.length}
                 />
               )}
               {activeTab === 'leads' && (
@@ -775,6 +804,12 @@ export default function Dashboard() {
                 <CallsView 
                   leads={filteredLeads}
                   onSelectLead={handleSelectLead}
+                />
+              )}
+              {activeTab === 'inquiries' && (
+                <InquiriesView 
+                  inquiries={inquiries}
+                  onDeleteInquiry={handleDeleteInquiry}
                 />
               )}
               {activeTab === 'analytics' && (
