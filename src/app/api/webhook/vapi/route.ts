@@ -291,11 +291,11 @@ export async function POST(req: Request) {
       if (functionName === 'create_inquiry') {
         const { name, phone, call_summary } = args;
 
-        if (!name || !phone) {
+        if (!name) {
           return NextResponse.json({
             results: [{
               toolCallId,
-              result: 'Missing required parameters: name or phone',
+              result: 'Missing required parameter: name',
             }],
           }, { status: 200 });
         }
@@ -327,7 +327,7 @@ export async function POST(req: Request) {
               where: { id: existingInquiry.id },
               data: {
                 name,
-                phone,
+                phone: phone || existingInquiry.phone,
                 call_summary: call_summary || existingInquiry.call_summary,
                 vapi_call_id: callId || existingInquiry.vapi_call_id,
               },

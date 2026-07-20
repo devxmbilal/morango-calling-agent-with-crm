@@ -179,19 +179,23 @@ export default function InquiryDetailModal({ inquiry, onClose, onDelete }: Inqui
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Phone size={15} color="#9AA1AD" />
-                      <span style={{ fontSize: '13.5px', fontWeight: 600, color: '#16191D' }}>{inquiry.phone}</span>
+                      <span style={{ fontSize: '13.5px', fontWeight: 600, color: inquiry.phone ? '#16191D' : '#D1D5DB' }}>
+                        {inquiry.phone || 'Not Provided'}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => handleCopy(inquiry.phone, 'phone')}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                        fontSize: '11px', color: copiedField === 'phone' ? '#16A34A' : '#9AA1AD',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {copiedField === 'phone' ? <><CheckCircle size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
-                    </button>
+                    {inquiry.phone && (
+                      <button
+                        onClick={() => handleCopy(inquiry.phone!, 'phone')}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          fontSize: '11px', color: copiedField === 'phone' ? '#16A34A' : '#9AA1AD',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {copiedField === 'phone' ? <><CheckCircle size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -229,8 +229,8 @@ export default function InquiriesView({ inquiries, onDeleteInquiry }: InquiriesV
                 {/* Phone */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                   <Phone size={13} color="#9AA1AD" />
-                  <span style={{ fontSize: '13px', color: '#5A616E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {inq.phone}
+                  <span style={{ fontSize: '13px', color: inq.phone ? '#5A616E' : '#D1D5DB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {inq.phone || 'Not Provided'}
                   </span>
                 </div>
 

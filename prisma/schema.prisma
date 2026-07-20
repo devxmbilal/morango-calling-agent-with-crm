@@ -63,7 +63,7 @@ model User {
 model Inquiry {
   id            String   @id @default(uuid())
   name          String
-  phone         String
+  phone         String?
   call_summary  String?
   call_status   String   @default("Completed")
   vapi_call_id  String?
