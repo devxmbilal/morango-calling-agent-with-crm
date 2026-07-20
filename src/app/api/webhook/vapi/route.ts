@@ -477,6 +477,105 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
+    if (message.type === 'recording-ready') {
+      const recordingUrlText =
+        message.recordingUrl ||
+        message.recording_url ||
+        call?.recordingUrl ||
+        call?.recording_url ||
+        payload.recordingUrl ||
+        payload.recording_url ||
+        message.artifact?.recordingUrl ||
+        message.artifact?.recording_url ||
+        payload.artifact?.recordingUrl ||
+        payload.artifact?.recording_url ||
+        '';
+
+      if (!recordingUrlText) {
+        return NextResponse.json({ success: true, message: 'No recording URL provided' }, { status: 200 });
+      }
+
+      if (!isServerDbConfigured) {
+        return NextResponse.json({ success: true, mode: 'demo' }, { status: 200 });
+      }
+
+      let updated = false;
+
+      // Match by callId
+      if (callId) {
+        // Try Lead
+        const lead = await prisma.lead.findFirst({
+          where: { vapi_call_id: callId },
+          select: { id: true },
+        });
+        if (lead) {
+          await prisma.lead.update({
+            where: { id: lead.id },
+            data: { recording_url: recordingUrlText },
+          });
+          updated = true;
+        }
+
+        // Try Inquiry
+        if (!updated) {
+          const inquiry = await prisma.inquiry.findFirst({
+            where: { vapi_call_id: callId },
+            select: { id: true },
+          });
+          if (inquiry) {
+            await prisma.inquiry.update({
+              where: { id: inquiry.id },
+              data: { recording_url: recordingUrlText },
+            });
+            updated = true;
+          }
+        }
+      }
+
+      // Match by phone fallback
+      const customerPhone = call?.customer?.number || payload.customer?.number || '';
+      if (!updated && customerPhone) {
+        const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+        const lastNine = cleanPhone.slice(-9);
+
+        // Try Lead
+        const phoneLeads = await prisma.lead.findMany({
+          select: { id: true, phone: true },
+        });
+        const matchedLead = phoneLeads?.find((l: any) => {
+          const lClean = (l.phone || '').replace(/[^0-9]/g, '');
+          return lClean === cleanPhone || (lastNine && lClean.endsWith(lastNine));
+        });
+        if (matchedLead) {
+          await prisma.lead.update({
+            where: { id: matchedLead.id },
+            data: { recording_url: recordingUrlText },
+          });
+          updated = true;
+        }
+
+        // Try Inquiry
+        if (!updated) {
+          const phoneInquiries = await prisma.inquiry.findMany({
+            select: { id: true, phone: true },
+          });
+          const matchedInquiry = phoneInquiries?.find((inq: any) => {
+            const iClean = (inq.phone || '').replace(/[^0-9]/g, '');
+            return iClean === cleanPhone || (lastNine && iClean.endsWith(lastNine));
+          });
+          if (matchedInquiry) {
+            await prisma.inquiry.update({
+              where: { id: matchedInquiry.id },
+              data: { recording_url: recordingUrlText },
+            });
+            updated = true;
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, updated }, { status: 200 });
+    }
+
     return NextResponse.json({ message: 'Unhandled webhook event type' }, { status: 200 });
   } catch (err: any) {
     console.error('Vapi Webhook Error:', err);

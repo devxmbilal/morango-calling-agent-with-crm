@@ -626,6 +626,21 @@ export default function LeadDetailModal({
                   controls
                   style={{ width: '100%', height: '32px', outline: 'none' }}
                 />
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
+                  <a
+                    href={lead.recording_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      color: '#E8483D',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Open / Download recording
+                  </a>
+                </div>
                 <p style={{ fontSize: '0.65rem', color: '#7A5650', marginTop: '6px', textAlign: 'center', fontWeight: 500 }}>
                   ID: {lead.vapi_call_id || 'N/A'}
                 </p>

@@ -272,6 +272,24 @@ export default function InquiryDetailModal({ inquiry, onClose, onDelete }: Inqui
                     controls
                     style={{ width: '100%', borderRadius: '8px', outline: 'none' }}
                   />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <a
+                      href={inquiry.recording_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#E8483D',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      Can't play? Open / Download recording
+                    </a>
+                  </div>
                 </div>
               )}
 

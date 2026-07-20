@@ -142,8 +142,9 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                 {lead.recording_url ? (
                   <div style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '14px',
+                    gap: '6px',
                     background: '#FAFBFC',
                     border: '1px solid #F1F2F4',
                     borderRadius: '12px',
@@ -155,6 +156,20 @@ export default function CallsView({ leads, onSelectLead }: CallsViewProps) {
                       controls
                       style={{ width: '100%', height: '32px', outline: 'none' }}
                     />
+                    <a
+                      href={lead.recording_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#E8483D',
+                        textDecoration: 'none',
+                        alignSelf: 'flex-end',
+                      }}
+                    >
+                      Can't play? Open / Download recording
+                    </a>
                   </div>
                 ) : (
                   <div style={{
